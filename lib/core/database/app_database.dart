@@ -1,8 +1,12 @@
 import 'dart:io';
 
 import 'package:alfred/core/database/daos/attachments_dao.dart';
+import 'package:alfred/core/database/daos/class_schedules_dao.dart';
 import 'package:alfred/core/database/daos/notes_dao.dart';
+import 'package:alfred/core/database/daos/events_dao.dart';
+
 import 'package:alfred/core/database/database_tables/attachments_table.dart';
+import 'package:alfred/core/database/database_tables/class_schedules_table.dart';
 import 'package:alfred/core/database/database_tables/notes_table.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -11,18 +15,19 @@ import 'package:path_provider/path_provider.dart';
 
 import 'daos/subjects_dao.dart';
 import 'database_tables/subjects_table.dart';
+import 'database_tables/events_table.dart';
 
 part 'app_database.g.dart';
 
 @DriftDatabase(
-  tables: [Subjects, Notes, Attachments],
-  daos: [SubjectsDao, NotesDao, AttachmentsDao],
+  tables: [Subjects, Notes, Attachments, Events, ClassSchedules],
+  daos: [SubjectsDao, NotesDao, AttachmentsDao, EventsDao, ClassSchedulesDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -35,6 +40,12 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 3) {
         await m.createTable(attachments);
+      }
+      if (from < 4) {
+        await m.createTable(events);
+      }
+      if (from < 5) {
+        await m.createTable(classSchedules);
       }
     },
   );

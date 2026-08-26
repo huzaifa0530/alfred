@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:alfred/features/attachments/presentation/controllers/attachment_controller.dart';
-import 'package:alfred/features/attachments/presentation/controllers/attachment_menu.dart';
+import 'package:alfred/features/attachments/presentation/controllers/audio_providers.dart';
+import 'package:alfred/features/attachments/presentation/widget/attachment_menu.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,6 +40,12 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
 
   File? _pendingFile;
   String? _pendingType;
+
+  bool _isRecording = false;
+  Duration _recordingDuration = Duration.zero;
+  Timer? _recordingTimer;
+
+  String? _pendingAudioPath;
 
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -109,6 +117,187 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
 
     setState(() {
       _pendingAttachments.addAll(files);
+    });
+  }
+
+  Future<void> _startRecording() async {
+    if (_isSending || _isRecording) {
+      return;
+    }
+
+    try {
+      final recorder = ref.read(audioRecorderProvider);
+      final allowed = await recorder.hasPermission();
+
+      if (!allowed) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone permission is required.')),
+        );
+
+        return;
+      }
+
+      await recorder.start();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isRecording = true;
+        _recordingDuration = Duration.zero;
+      });
+
+      _recordingTimer?.cancel();
+
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted || !_isRecording) {
+          return;
+        }
+
+        setState(() {
+          _recordingDuration += const Duration(seconds: 1);
+        });
+      });
+    } catch (e, stackTrace) {
+      debugPrint('START RECORDING ERROR: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Unable to start recording: $e')));
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    if (!_isRecording) {
+      debugPrint('STOP: Not currently recording');
+      return;
+    }
+
+    try {
+      debugPrint('STOP: Stopping recorder...');
+
+      _recordingTimer?.cancel();
+      _recordingTimer = null;
+
+      final recorder = ref.read(audioRecorderProvider);
+
+      final path = await recorder.stop();
+
+      debugPrint('STOP: Recorder returned path = $path');
+
+      if (!mounted) {
+        debugPrint('STOP: Widget is no longer mounted');
+        return;
+      }
+
+      setState(() {
+        _isRecording = false;
+        _recordingDuration = Duration.zero;
+      });
+
+      if (path == null || path.trim().isEmpty) {
+        debugPrint('STOP ERROR: Recorder returned NULL/EMPTY path');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Recording stopped, but no audio file was created.'),
+          ),
+        );
+
+        return;
+      }
+
+      final file = File(path);
+
+      debugPrint('STOP: File path = ${file.path}');
+      debugPrint('STOP: File exists = ${await file.exists()}');
+
+      if (!await file.exists()) {
+        debugPrint('STOP ERROR: Audio file does not exist');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Audio file was not found:\n$path')),
+        );
+
+        return;
+      }
+
+      final fileSize = await file.length();
+
+      debugPrint('STOP: Audio file size = $fileSize bytes');
+
+      if (fileSize == 0) {
+        debugPrint('STOP ERROR: Audio file is EMPTY');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recording file is empty.')),
+        );
+
+        return;
+      }
+
+      setState(() {
+        _pendingAttachments.add(file);
+      });
+
+      debugPrint(
+        'STOP SUCCESS: Added audio to pending attachments. '
+        'Count = ${_pendingAttachments.length}',
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Voice recording ready (${(fileSize / 1024).toStringAsFixed(1)} KB)',
+          ),
+        ),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('STOP RECORDING ERROR: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isRecording = false;
+        _recordingDuration = Duration.zero;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Unable to stop recording: $e')));
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    if (!_isRecording) {
+      return;
+    }
+
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+
+    final recorder = ref.read(audioRecorderProvider);
+
+    await recorder.cancel();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isRecording = false;
+      _recordingDuration = Duration.zero;
     });
   }
 
@@ -215,9 +404,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
 
             return NoteBubble(
               note: note,
-              attachments: attachments
-                  .map<Widget>(_buildAttachmentWidget)
-                  .toList(),
+              attachments: attachments.map(_buildAttachmentWidget).toList(),
               onDelete: () => _confirmDelete(note),
             );
           },
@@ -225,77 +412,68 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
       },
     );
   }
-  Widget _buildAttachmentWidget(Attachment attachment) {
-  if (attachment.isImage) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Image.file(
-        File(attachment.path),
-        width: 220,
-        height: 180,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: 220,
-            height: 100,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.broken_image_outlined),
-                SizedBox(width: 8),
-                Text('Image unavailable'),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
 
-  return Container(
-    constraints: const BoxConstraints(
-      minWidth: 180,
-      maxWidth: 260,
-    ),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: AppColors.surfaceElevated,
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.insert_drive_file_rounded),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Text(
-            attachment.name,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
+  Widget _buildAttachmentWidget(Attachment attachment) {
+    if (attachment.isImage) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.file(
+          File(attachment.path),
+          width: 220,
+          height: 180,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: 220,
+              height: 100,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.broken_image_outlined),
+                  SizedBox(width: 8),
+                  Text('Image unavailable'),
+                ],
+              ),
+            );
+          },
         ),
-      ],
-    ),
-  );
-}
+      );
+    }
 
-  Widget _buildAttachmentWidget(Attachment attachment) {
-    return Chip(
-      avatar: Icon(
-        attachment.isImage
-            ? Icons.image_outlined
-            : Icons.attach_file_rounded,
+    return Container(
+      constraints: const BoxConstraints(minWidth: 180, maxWidth: 260),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(12),
       ),
-      label: Text(attachment.name),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.insert_drive_file_rounded),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              attachment.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildComposer(NotesController controller) {
+    if (_isRecording) {
+      return _buildRecordingComposer();
+    }
+
     return SafeArea(
       top: false,
       child: Container(
@@ -372,7 +550,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                         )
                       : IconButton(
                           key: const ValueKey('voice'),
-                          onPressed: () {},
+                          onPressed: _startRecording,
                           icon: const Icon(Icons.mic_none_rounded),
                         ),
                 ),
@@ -382,6 +560,61 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildRecordingComposer() {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.border)),
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: _cancelRecording,
+              icon: const Icon(Icons.delete_outline_rounded),
+            ),
+
+            const SizedBox(width: 8),
+
+            const Icon(Icons.fiber_manual_record, size: 12, color: Colors.red),
+
+            const SizedBox(width: 8),
+
+            Text(
+              _formatDuration(_recordingDuration),
+              style: AppTextStyles.bodyMedium,
+            ),
+
+            const SizedBox(width: 16),
+
+            const Expanded(
+              child: Text(
+                'Recording voice note...',
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodyMedium,
+              ),
+            ),
+
+            IconButton(
+              onPressed: _stopRecording,
+              icon: const Icon(Icons.stop_circle_outlined, size: 30),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+
+    return '$minutes:$seconds';
   }
 
   Widget _buildPendingAttachments() {
@@ -395,16 +628,44 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
         itemBuilder: (context, index) {
           final file = _pendingAttachments[index];
 
+          final extension = file.path.toLowerCase();
+
+          final isAudio =
+              extension.endsWith('.m4a') ||
+              extension.endsWith('.mp3') ||
+              extension.endsWith('.wav') ||
+              extension.endsWith('.aac') ||
+              extension.endsWith('.ogg') ||
+              extension.endsWith('.opus') ||
+              extension.endsWith('.webm') ||
+              extension.endsWith('.mp4');
           return Stack(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  file,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
+              Container(
+                width: isAudio ? 140 : 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                child: isAudio
+                    ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.mic_rounded),
+                          SizedBox(width: 6),
+                          Text('Voice'),
+                        ],
+                      )
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          file,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
               ),
 
               Positioned(

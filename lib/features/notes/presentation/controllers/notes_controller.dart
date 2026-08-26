@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:alfred/core/storage/file_storage_service.dart';
 import 'package:alfred/features/attachments/domain/repositories/attachments_repository.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../attachments/domain/entities/attachment.dart';
@@ -104,46 +105,109 @@ class NotesController {
     return noteId;
   }
 
-  Future<void> _saveAttachment({
-    required int noteId,
-    required File file,
-  }) async {
-    final originalName = file.uri.pathSegments.last;
+Future<void> _saveAttachment({
+  required int noteId,
+  required File file,
+}) async {
+  final originalName = file.uri.pathSegments.last;
 
-    final extension = originalName.split('.').last.toLowerCase();
+  final extension = originalName.contains('.')
+      ? originalName.split('.').last.toLowerCase()
+      : '';
 
-    final isImage = const [
-      'jpg',
-      'jpeg',
-      'png',
-      'webp',
-      'gif',
-    ].contains(extension);
+  final isImage = const [
+    'jpg',
+    'jpeg',
+    'png',
+    'webp',
+    'gif',
+  ].contains(extension);
 
-    final storedPath = isImage
-        ? await _attachmentStorage.saveImage(
-            source: file,
-            fileName: originalName,
-          )
-        : await _attachmentStorage.saveFile(
-            source: file,
-            fileName: originalName,
-          );
+  final isAudio = const [
+    'm4a',
+    'mp3',
+    'wav',
+    'aac',
+    'ogg',
+    'opus',
+    'webm',
+    'mp4',
+  ].contains(extension);
 
-    final attachment = Attachment(
-      id: 0,
-      noteId: noteId,
-      type: isImage ? 'image' : 'file',
-      name: originalName,
-      path: storedPath,
-      mimeType: isImage ? 'image/$extension' : null,
-      sizeBytes: await _attachmentStorage.getFileSize(storedPath),
-      createdAt: DateTime.now(),
-    );
+  debugPrint('ATTACHMENT: name=$originalName');
+  debugPrint('ATTACHMENT: extension=$extension');
+  debugPrint('ATTACHMENT: isImage=$isImage');
+  debugPrint('ATTACHMENT: isAudio=$isAudio');
 
-    await _attachmentRepository.createAttachment(attachment);
+  final storedPath = isImage
+      ? await _attachmentStorage.saveImage(
+          source: file,
+          fileName: originalName,
+        )
+      : await _attachmentStorage.saveFile(
+          source: file,
+          fileName: originalName,
+        );
+
+  debugPrint('ATTACHMENT: storedPath=$storedPath');
+
+  final storedFile = File(storedPath);
+
+  debugPrint(
+    'ATTACHMENT: stored file exists=${await storedFile.exists()}',
+  );
+
+  final attachment = Attachment(
+    id: 0,
+    noteId: noteId,
+    type: isImage
+        ? 'image'
+        : isAudio
+            ? 'audio'
+            : 'file',
+    name: originalName,
+    path: storedPath,
+    mimeType: isImage
+        ? 'image/$extension'
+        : isAudio
+            ? _audioMimeType(extension)
+            : null,
+    sizeBytes: await _attachmentStorage.getFileSize(storedPath),
+    createdAt: DateTime.now(),
+  );
+
+  debugPrint(
+    'ATTACHMENT: Creating DB attachment '
+    'noteId=$noteId type=${attachment.type}',
+  );
+
+  await _attachmentRepository.createAttachment(attachment);
+
+  debugPrint('ATTACHMENT: DB attachment created successfully');
+}
+
+String? _audioMimeType(String extension) {
+  switch (extension) {
+    case 'm4a':
+      return 'audio/mp4';
+    case 'mp3':
+      return 'audio/mpeg';
+    case 'wav':
+      return 'audio/wav';
+    case 'aac':
+      return 'audio/aac';
+    case 'ogg':
+      return 'audio/ogg';
+    case 'opus':
+      return 'audio/opus';
+    case 'webm':
+      return 'audio/webm';
+    case 'mp4':
+      return 'audio/mp4';
+    default:
+      return null;
   }
-
+}
   Future<void> deleteNote(int id) async {
     await _deleteNote(id);
   }

@@ -5,4 +5,6 @@ abstract final class RouteNames {
   static const attendance = '/attendance';
   static const marks = '/marks';
   static const settings = '/settings';
+  static const timetable = '/timetable';
+
 }

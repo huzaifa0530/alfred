@@ -1426,15 +1426,1266 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
   }
 }
 
+class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _subjectIdMeta = const VerificationMeta(
+    'subjectId',
+  );
+  @override
+  late final GeneratedColumn<int> subjectId = GeneratedColumn<int>(
+    'subject_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _priorityMeta = const VerificationMeta(
+    'priority',
+  );
+  @override
+  late final GeneratedColumn<String> priority = GeneratedColumn<String>(
+    'priority',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('normal'),
+  );
+  static const VerificationMeta _dueDateMeta = const VerificationMeta(
+    'dueDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> dueDate = GeneratedColumn<DateTime>(
+    'due_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isCompletedMeta = const VerificationMeta(
+    'isCompleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isCompleted = GeneratedColumn<bool>(
+    'is_completed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_completed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    subjectId,
+    title,
+    description,
+    type,
+    priority,
+    dueDate,
+    isCompleted,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Event> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('subject_id')) {
+      context.handle(
+        _subjectIdMeta,
+        subjectId.isAcceptableOrUnknown(data['subject_id']!, _subjectIdMeta),
+      );
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('priority')) {
+      context.handle(
+        _priorityMeta,
+        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+      );
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(
+        _dueDateMeta,
+        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dueDateMeta);
+    }
+    if (data.containsKey('is_completed')) {
+      context.handle(
+        _isCompletedMeta,
+        isCompleted.isAcceptableOrUnknown(
+          data['is_completed']!,
+          _isCompletedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Event map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Event(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      subjectId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}subject_id'],
+      ),
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      priority: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}priority'],
+      )!,
+      dueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}due_date'],
+      )!,
+      isCompleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_completed'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $EventsTable createAlias(String alias) {
+    return $EventsTable(attachedDatabase, alias);
+  }
+}
+
+class Event extends DataClass implements Insertable<Event> {
+  final int id;
+  final int? subjectId;
+  final String title;
+  final String? description;
+  final String type;
+  final String priority;
+  final DateTime dueDate;
+  final bool isCompleted;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const Event({
+    required this.id,
+    this.subjectId,
+    required this.title,
+    this.description,
+    required this.type,
+    required this.priority,
+    required this.dueDate,
+    required this.isCompleted,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || subjectId != null) {
+      map['subject_id'] = Variable<int>(subjectId);
+    }
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['type'] = Variable<String>(type);
+    map['priority'] = Variable<String>(priority);
+    map['due_date'] = Variable<DateTime>(dueDate);
+    map['is_completed'] = Variable<bool>(isCompleted);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  EventsCompanion toCompanion(bool nullToAbsent) {
+    return EventsCompanion(
+      id: Value(id),
+      subjectId: subjectId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subjectId),
+      title: Value(title),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      type: Value(type),
+      priority: Value(priority),
+      dueDate: Value(dueDate),
+      isCompleted: Value(isCompleted),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Event.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Event(
+      id: serializer.fromJson<int>(json['id']),
+      subjectId: serializer.fromJson<int?>(json['subjectId']),
+      title: serializer.fromJson<String>(json['title']),
+      description: serializer.fromJson<String?>(json['description']),
+      type: serializer.fromJson<String>(json['type']),
+      priority: serializer.fromJson<String>(json['priority']),
+      dueDate: serializer.fromJson<DateTime>(json['dueDate']),
+      isCompleted: serializer.fromJson<bool>(json['isCompleted']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'subjectId': serializer.toJson<int?>(subjectId),
+      'title': serializer.toJson<String>(title),
+      'description': serializer.toJson<String?>(description),
+      'type': serializer.toJson<String>(type),
+      'priority': serializer.toJson<String>(priority),
+      'dueDate': serializer.toJson<DateTime>(dueDate),
+      'isCompleted': serializer.toJson<bool>(isCompleted),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Event copyWith({
+    int? id,
+    Value<int?> subjectId = const Value.absent(),
+    String? title,
+    Value<String?> description = const Value.absent(),
+    String? type,
+    String? priority,
+    DateTime? dueDate,
+    bool? isCompleted,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => Event(
+    id: id ?? this.id,
+    subjectId: subjectId.present ? subjectId.value : this.subjectId,
+    title: title ?? this.title,
+    description: description.present ? description.value : this.description,
+    type: type ?? this.type,
+    priority: priority ?? this.priority,
+    dueDate: dueDate ?? this.dueDate,
+    isCompleted: isCompleted ?? this.isCompleted,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  Event copyWithCompanion(EventsCompanion data) {
+    return Event(
+      id: data.id.present ? data.id.value : this.id,
+      subjectId: data.subjectId.present ? data.subjectId.value : this.subjectId,
+      title: data.title.present ? data.title.value : this.title,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      type: data.type.present ? data.type.value : this.type,
+      priority: data.priority.present ? data.priority.value : this.priority,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      isCompleted: data.isCompleted.present
+          ? data.isCompleted.value
+          : this.isCompleted,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Event(')
+          ..write('id: $id, ')
+          ..write('subjectId: $subjectId, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('type: $type, ')
+          ..write('priority: $priority, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('isCompleted: $isCompleted, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    subjectId,
+    title,
+    description,
+    type,
+    priority,
+    dueDate,
+    isCompleted,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Event &&
+          other.id == this.id &&
+          other.subjectId == this.subjectId &&
+          other.title == this.title &&
+          other.description == this.description &&
+          other.type == this.type &&
+          other.priority == this.priority &&
+          other.dueDate == this.dueDate &&
+          other.isCompleted == this.isCompleted &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class EventsCompanion extends UpdateCompanion<Event> {
+  final Value<int> id;
+  final Value<int?> subjectId;
+  final Value<String> title;
+  final Value<String?> description;
+  final Value<String> type;
+  final Value<String> priority;
+  final Value<DateTime> dueDate;
+  final Value<bool> isCompleted;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const EventsCompanion({
+    this.id = const Value.absent(),
+    this.subjectId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.description = const Value.absent(),
+    this.type = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.isCompleted = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  EventsCompanion.insert({
+    this.id = const Value.absent(),
+    this.subjectId = const Value.absent(),
+    required String title,
+    this.description = const Value.absent(),
+    required String type,
+    this.priority = const Value.absent(),
+    required DateTime dueDate,
+    this.isCompleted = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : title = Value(title),
+       type = Value(type),
+       dueDate = Value(dueDate);
+  static Insertable<Event> custom({
+    Expression<int>? id,
+    Expression<int>? subjectId,
+    Expression<String>? title,
+    Expression<String>? description,
+    Expression<String>? type,
+    Expression<String>? priority,
+    Expression<DateTime>? dueDate,
+    Expression<bool>? isCompleted,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (subjectId != null) 'subject_id': subjectId,
+      if (title != null) 'title': title,
+      if (description != null) 'description': description,
+      if (type != null) 'type': type,
+      if (priority != null) 'priority': priority,
+      if (dueDate != null) 'due_date': dueDate,
+      if (isCompleted != null) 'is_completed': isCompleted,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  EventsCompanion copyWith({
+    Value<int>? id,
+    Value<int?>? subjectId,
+    Value<String>? title,
+    Value<String?>? description,
+    Value<String>? type,
+    Value<String>? priority,
+    Value<DateTime>? dueDate,
+    Value<bool>? isCompleted,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return EventsCompanion(
+      id: id ?? this.id,
+      subjectId: subjectId ?? this.subjectId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      type: type ?? this.type,
+      priority: priority ?? this.priority,
+      dueDate: dueDate ?? this.dueDate,
+      isCompleted: isCompleted ?? this.isCompleted,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (subjectId.present) {
+      map['subject_id'] = Variable<int>(subjectId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (priority.present) {
+      map['priority'] = Variable<String>(priority.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<DateTime>(dueDate.value);
+    }
+    if (isCompleted.present) {
+      map['is_completed'] = Variable<bool>(isCompleted.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EventsCompanion(')
+          ..write('id: $id, ')
+          ..write('subjectId: $subjectId, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('type: $type, ')
+          ..write('priority: $priority, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('isCompleted: $isCompleted, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ClassSchedulesTable extends ClassSchedules
+    with TableInfo<$ClassSchedulesTable, ClassSchedule> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ClassSchedulesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _subjectIdMeta = const VerificationMeta(
+    'subjectId',
+  );
+  @override
+  late final GeneratedColumn<int> subjectId = GeneratedColumn<int>(
+    'subject_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _weekdayMeta = const VerificationMeta(
+    'weekday',
+  );
+  @override
+  late final GeneratedColumn<int> weekday = GeneratedColumn<int>(
+    'weekday',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startTimeMeta = const VerificationMeta(
+    'startTime',
+  );
+  @override
+  late final GeneratedColumn<String> startTime = GeneratedColumn<String>(
+    'start_time',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endTimeMeta = const VerificationMeta(
+    'endTime',
+  );
+  @override
+  late final GeneratedColumn<String> endTime = GeneratedColumn<String>(
+    'end_time',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _roomMeta = const VerificationMeta('room');
+  @override
+  late final GeneratedColumn<String> room = GeneratedColumn<String>(
+    'room',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _teacherMeta = const VerificationMeta(
+    'teacher',
+  );
+  @override
+  late final GeneratedColumn<String> teacher = GeneratedColumn<String>(
+    'teacher',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    subjectId,
+    weekday,
+    startTime,
+    endTime,
+    room,
+    teacher,
+    notes,
+    isActive,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'class_schedules';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ClassSchedule> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('subject_id')) {
+      context.handle(
+        _subjectIdMeta,
+        subjectId.isAcceptableOrUnknown(data['subject_id']!, _subjectIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_subjectIdMeta);
+    }
+    if (data.containsKey('weekday')) {
+      context.handle(
+        _weekdayMeta,
+        weekday.isAcceptableOrUnknown(data['weekday']!, _weekdayMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_weekdayMeta);
+    }
+    if (data.containsKey('start_time')) {
+      context.handle(
+        _startTimeMeta,
+        startTime.isAcceptableOrUnknown(data['start_time']!, _startTimeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startTimeMeta);
+    }
+    if (data.containsKey('end_time')) {
+      context.handle(
+        _endTimeMeta,
+        endTime.isAcceptableOrUnknown(data['end_time']!, _endTimeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_endTimeMeta);
+    }
+    if (data.containsKey('room')) {
+      context.handle(
+        _roomMeta,
+        room.isAcceptableOrUnknown(data['room']!, _roomMeta),
+      );
+    }
+    if (data.containsKey('teacher')) {
+      context.handle(
+        _teacherMeta,
+        teacher.isAcceptableOrUnknown(data['teacher']!, _teacherMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ClassSchedule map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ClassSchedule(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      subjectId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}subject_id'],
+      )!,
+      weekday: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}weekday'],
+      )!,
+      startTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_time'],
+      )!,
+      endTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_time'],
+      )!,
+      room: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}room'],
+      ),
+      teacher: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}teacher'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ClassSchedulesTable createAlias(String alias) {
+    return $ClassSchedulesTable(attachedDatabase, alias);
+  }
+}
+
+class ClassSchedule extends DataClass implements Insertable<ClassSchedule> {
+  final int id;
+  final int subjectId;
+
+  /// 1 = Monday
+  /// 2 = Tuesday
+  /// ...
+  /// 7 = Sunday
+  final int weekday;
+  final String startTime;
+  final String endTime;
+  final String? room;
+  final String? teacher;
+  final String? notes;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const ClassSchedule({
+    required this.id,
+    required this.subjectId,
+    required this.weekday,
+    required this.startTime,
+    required this.endTime,
+    this.room,
+    this.teacher,
+    this.notes,
+    required this.isActive,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['subject_id'] = Variable<int>(subjectId);
+    map['weekday'] = Variable<int>(weekday);
+    map['start_time'] = Variable<String>(startTime);
+    map['end_time'] = Variable<String>(endTime);
+    if (!nullToAbsent || room != null) {
+      map['room'] = Variable<String>(room);
+    }
+    if (!nullToAbsent || teacher != null) {
+      map['teacher'] = Variable<String>(teacher);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['is_active'] = Variable<bool>(isActive);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  ClassSchedulesCompanion toCompanion(bool nullToAbsent) {
+    return ClassSchedulesCompanion(
+      id: Value(id),
+      subjectId: Value(subjectId),
+      weekday: Value(weekday),
+      startTime: Value(startTime),
+      endTime: Value(endTime),
+      room: room == null && nullToAbsent ? const Value.absent() : Value(room),
+      teacher: teacher == null && nullToAbsent
+          ? const Value.absent()
+          : Value(teacher),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      isActive: Value(isActive),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ClassSchedule.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ClassSchedule(
+      id: serializer.fromJson<int>(json['id']),
+      subjectId: serializer.fromJson<int>(json['subjectId']),
+      weekday: serializer.fromJson<int>(json['weekday']),
+      startTime: serializer.fromJson<String>(json['startTime']),
+      endTime: serializer.fromJson<String>(json['endTime']),
+      room: serializer.fromJson<String?>(json['room']),
+      teacher: serializer.fromJson<String?>(json['teacher']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'subjectId': serializer.toJson<int>(subjectId),
+      'weekday': serializer.toJson<int>(weekday),
+      'startTime': serializer.toJson<String>(startTime),
+      'endTime': serializer.toJson<String>(endTime),
+      'room': serializer.toJson<String?>(room),
+      'teacher': serializer.toJson<String?>(teacher),
+      'notes': serializer.toJson<String?>(notes),
+      'isActive': serializer.toJson<bool>(isActive),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  ClassSchedule copyWith({
+    int? id,
+    int? subjectId,
+    int? weekday,
+    String? startTime,
+    String? endTime,
+    Value<String?> room = const Value.absent(),
+    Value<String?> teacher = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => ClassSchedule(
+    id: id ?? this.id,
+    subjectId: subjectId ?? this.subjectId,
+    weekday: weekday ?? this.weekday,
+    startTime: startTime ?? this.startTime,
+    endTime: endTime ?? this.endTime,
+    room: room.present ? room.value : this.room,
+    teacher: teacher.present ? teacher.value : this.teacher,
+    notes: notes.present ? notes.value : this.notes,
+    isActive: isActive ?? this.isActive,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ClassSchedule copyWithCompanion(ClassSchedulesCompanion data) {
+    return ClassSchedule(
+      id: data.id.present ? data.id.value : this.id,
+      subjectId: data.subjectId.present ? data.subjectId.value : this.subjectId,
+      weekday: data.weekday.present ? data.weekday.value : this.weekday,
+      startTime: data.startTime.present ? data.startTime.value : this.startTime,
+      endTime: data.endTime.present ? data.endTime.value : this.endTime,
+      room: data.room.present ? data.room.value : this.room,
+      teacher: data.teacher.present ? data.teacher.value : this.teacher,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ClassSchedule(')
+          ..write('id: $id, ')
+          ..write('subjectId: $subjectId, ')
+          ..write('weekday: $weekday, ')
+          ..write('startTime: $startTime, ')
+          ..write('endTime: $endTime, ')
+          ..write('room: $room, ')
+          ..write('teacher: $teacher, ')
+          ..write('notes: $notes, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    subjectId,
+    weekday,
+    startTime,
+    endTime,
+    room,
+    teacher,
+    notes,
+    isActive,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ClassSchedule &&
+          other.id == this.id &&
+          other.subjectId == this.subjectId &&
+          other.weekday == this.weekday &&
+          other.startTime == this.startTime &&
+          other.endTime == this.endTime &&
+          other.room == this.room &&
+          other.teacher == this.teacher &&
+          other.notes == this.notes &&
+          other.isActive == this.isActive &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ClassSchedulesCompanion extends UpdateCompanion<ClassSchedule> {
+  final Value<int> id;
+  final Value<int> subjectId;
+  final Value<int> weekday;
+  final Value<String> startTime;
+  final Value<String> endTime;
+  final Value<String?> room;
+  final Value<String?> teacher;
+  final Value<String?> notes;
+  final Value<bool> isActive;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const ClassSchedulesCompanion({
+    this.id = const Value.absent(),
+    this.subjectId = const Value.absent(),
+    this.weekday = const Value.absent(),
+    this.startTime = const Value.absent(),
+    this.endTime = const Value.absent(),
+    this.room = const Value.absent(),
+    this.teacher = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  ClassSchedulesCompanion.insert({
+    this.id = const Value.absent(),
+    required int subjectId,
+    required int weekday,
+    required String startTime,
+    required String endTime,
+    this.room = const Value.absent(),
+    this.teacher = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : subjectId = Value(subjectId),
+       weekday = Value(weekday),
+       startTime = Value(startTime),
+       endTime = Value(endTime);
+  static Insertable<ClassSchedule> custom({
+    Expression<int>? id,
+    Expression<int>? subjectId,
+    Expression<int>? weekday,
+    Expression<String>? startTime,
+    Expression<String>? endTime,
+    Expression<String>? room,
+    Expression<String>? teacher,
+    Expression<String>? notes,
+    Expression<bool>? isActive,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (subjectId != null) 'subject_id': subjectId,
+      if (weekday != null) 'weekday': weekday,
+      if (startTime != null) 'start_time': startTime,
+      if (endTime != null) 'end_time': endTime,
+      if (room != null) 'room': room,
+      if (teacher != null) 'teacher': teacher,
+      if (notes != null) 'notes': notes,
+      if (isActive != null) 'is_active': isActive,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  ClassSchedulesCompanion copyWith({
+    Value<int>? id,
+    Value<int>? subjectId,
+    Value<int>? weekday,
+    Value<String>? startTime,
+    Value<String>? endTime,
+    Value<String?>? room,
+    Value<String?>? teacher,
+    Value<String?>? notes,
+    Value<bool>? isActive,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return ClassSchedulesCompanion(
+      id: id ?? this.id,
+      subjectId: subjectId ?? this.subjectId,
+      weekday: weekday ?? this.weekday,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      room: room ?? this.room,
+      teacher: teacher ?? this.teacher,
+      notes: notes ?? this.notes,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (subjectId.present) {
+      map['subject_id'] = Variable<int>(subjectId.value);
+    }
+    if (weekday.present) {
+      map['weekday'] = Variable<int>(weekday.value);
+    }
+    if (startTime.present) {
+      map['start_time'] = Variable<String>(startTime.value);
+    }
+    if (endTime.present) {
+      map['end_time'] = Variable<String>(endTime.value);
+    }
+    if (room.present) {
+      map['room'] = Variable<String>(room.value);
+    }
+    if (teacher.present) {
+      map['teacher'] = Variable<String>(teacher.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ClassSchedulesCompanion(')
+          ..write('id: $id, ')
+          ..write('subjectId: $subjectId, ')
+          ..write('weekday: $weekday, ')
+          ..write('startTime: $startTime, ')
+          ..write('endTime: $endTime, ')
+          ..write('room: $room, ')
+          ..write('teacher: $teacher, ')
+          ..write('notes: $notes, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $SubjectsTable subjects = $SubjectsTable(this);
   late final $NotesTable notes = $NotesTable(this);
   late final $AttachmentsTable attachments = $AttachmentsTable(this);
+  late final $EventsTable events = $EventsTable(this);
+  late final $ClassSchedulesTable classSchedules = $ClassSchedulesTable(this);
   late final SubjectsDao subjectsDao = SubjectsDao(this as AppDatabase);
   late final NotesDao notesDao = NotesDao(this as AppDatabase);
   late final AttachmentsDao attachmentsDao = AttachmentsDao(
+    this as AppDatabase,
+  );
+  late final EventsDao eventsDao = EventsDao(this as AppDatabase);
+  late final ClassSchedulesDao classSchedulesDao = ClassSchedulesDao(
     this as AppDatabase,
   );
   @override
@@ -1445,6 +2696,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     subjects,
     notes,
     attachments,
+    events,
+    classSchedules,
   ];
 }
 
@@ -2171,6 +3424,603 @@ typedef $$AttachmentsTableProcessedTableManager =
       Attachment,
       PrefetchHooks Function()
     >;
+typedef $$EventsTableCreateCompanionBuilder =
+    EventsCompanion Function({
+      Value<int> id,
+      Value<int?> subjectId,
+      required String title,
+      Value<String?> description,
+      required String type,
+      Value<String> priority,
+      required DateTime dueDate,
+      Value<bool> isCompleted,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$EventsTableUpdateCompanionBuilder =
+    EventsCompanion Function({
+      Value<int> id,
+      Value<int?> subjectId,
+      Value<String> title,
+      Value<String?> description,
+      Value<String> type,
+      Value<String> priority,
+      Value<DateTime> dueDate,
+      Value<bool> isCompleted,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+class $$EventsTableFilterComposer
+    extends Composer<_$AppDatabase, $EventsTable> {
+  $$EventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get subjectId => $composableBuilder(
+    column: $table.subjectId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isCompleted => $composableBuilder(
+    column: $table.isCompleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $EventsTable> {
+  $$EventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get subjectId => $composableBuilder(
+    column: $table.subjectId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isCompleted => $composableBuilder(
+    column: $table.isCompleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EventsTable> {
+  $$EventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get subjectId =>
+      $composableBuilder(column: $table.subjectId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<bool> get isCompleted => $composableBuilder(
+    column: $table.isCompleted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$EventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EventsTable,
+          Event,
+          $$EventsTableFilterComposer,
+          $$EventsTableOrderingComposer,
+          $$EventsTableAnnotationComposer,
+          $$EventsTableCreateCompanionBuilder,
+          $$EventsTableUpdateCompanionBuilder,
+          (Event, BaseReferences<_$AppDatabase, $EventsTable, Event>),
+          Event,
+          PrefetchHooks Function()
+        > {
+  $$EventsTableTableManager(_$AppDatabase db, $EventsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int?> subjectId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> priority = const Value.absent(),
+                Value<DateTime> dueDate = const Value.absent(),
+                Value<bool> isCompleted = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => EventsCompanion(
+                id: id,
+                subjectId: subjectId,
+                title: title,
+                description: description,
+                type: type,
+                priority: priority,
+                dueDate: dueDate,
+                isCompleted: isCompleted,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int?> subjectId = const Value.absent(),
+                required String title,
+                Value<String?> description = const Value.absent(),
+                required String type,
+                Value<String> priority = const Value.absent(),
+                required DateTime dueDate,
+                Value<bool> isCompleted = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => EventsCompanion.insert(
+                id: id,
+                subjectId: subjectId,
+                title: title,
+                description: description,
+                type: type,
+                priority: priority,
+                dueDate: dueDate,
+                isCompleted: isCompleted,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EventsTable,
+      Event,
+      $$EventsTableFilterComposer,
+      $$EventsTableOrderingComposer,
+      $$EventsTableAnnotationComposer,
+      $$EventsTableCreateCompanionBuilder,
+      $$EventsTableUpdateCompanionBuilder,
+      (Event, BaseReferences<_$AppDatabase, $EventsTable, Event>),
+      Event,
+      PrefetchHooks Function()
+    >;
+typedef $$ClassSchedulesTableCreateCompanionBuilder =
+    ClassSchedulesCompanion Function({
+      Value<int> id,
+      required int subjectId,
+      required int weekday,
+      required String startTime,
+      required String endTime,
+      Value<String?> room,
+      Value<String?> teacher,
+      Value<String?> notes,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$ClassSchedulesTableUpdateCompanionBuilder =
+    ClassSchedulesCompanion Function({
+      Value<int> id,
+      Value<int> subjectId,
+      Value<int> weekday,
+      Value<String> startTime,
+      Value<String> endTime,
+      Value<String?> room,
+      Value<String?> teacher,
+      Value<String?> notes,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+class $$ClassSchedulesTableFilterComposer
+    extends Composer<_$AppDatabase, $ClassSchedulesTable> {
+  $$ClassSchedulesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get subjectId => $composableBuilder(
+    column: $table.subjectId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get weekday => $composableBuilder(
+    column: $table.weekday,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startTime => $composableBuilder(
+    column: $table.startTime,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endTime => $composableBuilder(
+    column: $table.endTime,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get room => $composableBuilder(
+    column: $table.room,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get teacher => $composableBuilder(
+    column: $table.teacher,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ClassSchedulesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ClassSchedulesTable> {
+  $$ClassSchedulesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get subjectId => $composableBuilder(
+    column: $table.subjectId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get weekday => $composableBuilder(
+    column: $table.weekday,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startTime => $composableBuilder(
+    column: $table.startTime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endTime => $composableBuilder(
+    column: $table.endTime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get room => $composableBuilder(
+    column: $table.room,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get teacher => $composableBuilder(
+    column: $table.teacher,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ClassSchedulesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ClassSchedulesTable> {
+  $$ClassSchedulesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get subjectId =>
+      $composableBuilder(column: $table.subjectId, builder: (column) => column);
+
+  GeneratedColumn<int> get weekday =>
+      $composableBuilder(column: $table.weekday, builder: (column) => column);
+
+  GeneratedColumn<String> get startTime =>
+      $composableBuilder(column: $table.startTime, builder: (column) => column);
+
+  GeneratedColumn<String> get endTime =>
+      $composableBuilder(column: $table.endTime, builder: (column) => column);
+
+  GeneratedColumn<String> get room =>
+      $composableBuilder(column: $table.room, builder: (column) => column);
+
+  GeneratedColumn<String> get teacher =>
+      $composableBuilder(column: $table.teacher, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ClassSchedulesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ClassSchedulesTable,
+          ClassSchedule,
+          $$ClassSchedulesTableFilterComposer,
+          $$ClassSchedulesTableOrderingComposer,
+          $$ClassSchedulesTableAnnotationComposer,
+          $$ClassSchedulesTableCreateCompanionBuilder,
+          $$ClassSchedulesTableUpdateCompanionBuilder,
+          (
+            ClassSchedule,
+            BaseReferences<_$AppDatabase, $ClassSchedulesTable, ClassSchedule>,
+          ),
+          ClassSchedule,
+          PrefetchHooks Function()
+        > {
+  $$ClassSchedulesTableTableManager(
+    _$AppDatabase db,
+    $ClassSchedulesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ClassSchedulesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ClassSchedulesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ClassSchedulesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> subjectId = const Value.absent(),
+                Value<int> weekday = const Value.absent(),
+                Value<String> startTime = const Value.absent(),
+                Value<String> endTime = const Value.absent(),
+                Value<String?> room = const Value.absent(),
+                Value<String?> teacher = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => ClassSchedulesCompanion(
+                id: id,
+                subjectId: subjectId,
+                weekday: weekday,
+                startTime: startTime,
+                endTime: endTime,
+                room: room,
+                teacher: teacher,
+                notes: notes,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int subjectId,
+                required int weekday,
+                required String startTime,
+                required String endTime,
+                Value<String?> room = const Value.absent(),
+                Value<String?> teacher = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => ClassSchedulesCompanion.insert(
+                id: id,
+                subjectId: subjectId,
+                weekday: weekday,
+                startTime: startTime,
+                endTime: endTime,
+                room: room,
+                teacher: teacher,
+                notes: notes,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ClassSchedulesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ClassSchedulesTable,
+      ClassSchedule,
+      $$ClassSchedulesTableFilterComposer,
+      $$ClassSchedulesTableOrderingComposer,
+      $$ClassSchedulesTableAnnotationComposer,
+      $$ClassSchedulesTableCreateCompanionBuilder,
+      $$ClassSchedulesTableUpdateCompanionBuilder,
+      (
+        ClassSchedule,
+        BaseReferences<_$AppDatabase, $ClassSchedulesTable, ClassSchedule>,
+      ),
+      ClassSchedule,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2181,4 +4031,8 @@ class $AppDatabaseManager {
       $$NotesTableTableManager(_db, _db.notes);
   $$AttachmentsTableTableManager get attachments =>
       $$AttachmentsTableTableManager(_db, _db.attachments);
+  $$EventsTableTableManager get events =>
+      $$EventsTableTableManager(_db, _db.events);
+  $$ClassSchedulesTableTableManager get classSchedules =>
+      $$ClassSchedulesTableTableManager(_db, _db.classSchedules);
 }
