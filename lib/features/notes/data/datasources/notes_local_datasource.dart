@@ -22,11 +22,10 @@ class NotesLocalDataSource {
   Future<List<Note>> getNotesForSubject(
     int subjectId,
   ) async {
-    final items =
-        await _dao.getNotesForSubject(subjectId);
+    final items = await _dao.getNotesForSubject(subjectId);
 
     return items
-      .map<Note>(NoteMapper.fromDatabase)
+        .map<Note>(NoteMapper.fromDatabase)
         .toList();
   }
 
@@ -54,5 +53,9 @@ class NotesLocalDataSource {
 
   Future<int> deleteNote(int id) {
     return _dao.deleteNote(id);
+  }
+
+  Future<int> deleteAllNotes(int subjectId) {
+    return _dao.deleteAllNotes(subjectId);
   }
 }

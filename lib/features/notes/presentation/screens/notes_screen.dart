@@ -4,8 +4,10 @@ import 'dart:io';
 import 'package:alfred/features/attachments/presentation/controllers/attachment_controller.dart';
 import 'package:alfred/features/attachments/presentation/controllers/audio_providers.dart';
 import 'package:alfred/features/attachments/presentation/widget/attachment_menu.dart';
+import 'package:alfred/features/notes/presentation/widgets/audio_message_bubble.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -35,7 +37,9 @@ class NotesScreen extends ConsumerStatefulWidget {
 class _NotesScreenState extends ConsumerState<NotesScreen> {
   final _textController = TextEditingController();
   final _focusNode = FocusNode();
-
+  bool _isSearching = false;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
   bool _isSending = false;
 
   File? _pendingFile;
@@ -50,6 +54,160 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   final ImagePicker _imagePicker = ImagePicker();
 
   final List<File> _pendingAttachments = [];
+  Future<void> _summarizeNote(Note note) async {
+    final controller = ref.read(notesControllerProvider(widget.subjectId));
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(strokeWidth: 2),
+            SizedBox(width: 16),
+            Text('Summarizing…'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final summary = await controller.summarizeNote(note.content);
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // close loading dialog
+
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('AI Summary'),
+          content: SingleChildScrollView(child: Text(summary)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: summary));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Copied to clipboard')),
+                );
+              },
+              child: const Text('Copy'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // close loading dialog
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Summarize failed: $e')));
+    }
+  }
+
+  Widget _buildNoSearchResults() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.search_off_rounded,
+              size: 48,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 12),
+            Text('No notes found', style: AppTextStyles.headingSmall),
+            const SizedBox(height: 6),
+            Text(
+              'Try a different search term.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMedium,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteAll() async {
+    final controller = ref.read(notesControllerProvider(widget.subjectId));
+
+    final notes = await controller.watchNotes().first;
+
+    if (!mounted) return;
+
+    if (notes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('There are no notes to delete.')),
+      );
+
+      return;
+    }
+
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete all notes?'),
+          content: Text(
+            'This will permanently delete '
+            '${notes.length} ${notes.length == 1 ? 'note' : 'notes'} '
+            'and all their attachments.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Delete all'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
+    try {
+      await controller.deleteAllNotes();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${notes.length} '
+            '${notes.length == 1 ? 'note' : 'notes'} deleted.',
+          ),
+        ),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('DELETE ALL NOTES ERROR: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to delete notes: $e')));
+    }
+  }
+
   void _showAttachmentMenu() {
     showModalBottomSheet(
       context: context,
@@ -310,6 +468,14 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     super.initState();
 
     _textController.addListener(_onTextChanged);
+
+    _searchController.addListener(() {
+      if (!mounted) return;
+
+      setState(() {
+        _searchQuery = _searchController.text.trim();
+      });
+    });
   }
 
   @override
@@ -317,7 +483,10 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     _textController.removeListener(_onTextChanged);
 
     _textController.dispose();
+    _searchController.dispose();
     _focusNode.dispose();
+
+    _recordingTimer?.cancel();
 
     super.dispose();
   }
@@ -329,18 +498,59 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.subjectName, style: AppTextStyles.headingSmall),
-            const Text('Notes', style: AppTextStyles.bodySmall),
-          ],
-        ),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Search notes...',
+                  border: InputBorder.none,
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.subjectName, style: AppTextStyles.headingSmall),
+                  const Text('Notes', style: AppTextStyles.bodySmall),
+                ],
+              ),
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.search_rounded)),
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_vert_rounded),
+            tooltip: _isSearching ? 'Close search' : 'Search',
+            onPressed: () {
+              setState(() {
+                _isSearching = !_isSearching;
+
+                if (!_isSearching) {
+                  _searchController.clear();
+                }
+              });
+            },
+            icon: Icon(
+              _isSearching ? Icons.close_rounded : Icons.search_rounded,
+            ),
+          ),
+
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'delete_all') {
+                await _confirmDeleteAll();
+              }
+            },
+            itemBuilder: (context) {
+              return const [
+                PopupMenuItem<String>(
+                  value: 'delete_all',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_sweep_outlined, color: Colors.red),
+                      SizedBox(width: 12),
+                      Text('Delete all notes'),
+                    ],
+                  ),
+                ),
+              ];
+            },
           ),
         ],
       ),
@@ -382,6 +592,18 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   }
 
   Widget _buildNotesList(List<Note> notes) {
+    final filteredNotes = _searchQuery.isEmpty
+        ? notes
+        : notes.where((note) {
+            return note.content.toLowerCase().contains(
+              _searchQuery.toLowerCase(),
+            );
+          }).toList();
+
+    if (filteredNotes.isEmpty) {
+      return _buildNoSearchResults();
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(
         AppDimensions.space16,
@@ -389,9 +611,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
         AppDimensions.space16,
         AppDimensions.space20,
       ),
-      itemCount: notes.length,
+      itemCount: filteredNotes.length,
       itemBuilder: (context, index) {
-        final note = notes[index];
+        final note = filteredNotes[index];
 
         final attachmentController = ref.watch(
           attachmentControllerProvider(note.id),
@@ -401,11 +623,13 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
           stream: attachmentController.watchAttachments(),
           builder: (context, snapshot) {
             final attachments = snapshot.data ?? [];
-
             return NoteBubble(
               note: note,
               attachments: attachments.map(_buildAttachmentWidget).toList(),
               onDelete: () => _confirmDelete(note),
+              onSummarize: note.content.trim().isEmpty
+                  ? null
+                  : () => _summarizeNote(note),
             );
           },
         );
@@ -443,6 +667,10 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
           },
         ),
       );
+    }
+
+    if (attachment.type == 'audio') {
+      return AudioMessageBubble(path: attachment.path);
     }
 
     return Container(

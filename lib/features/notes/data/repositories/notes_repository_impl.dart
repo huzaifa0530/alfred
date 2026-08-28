@@ -2,8 +2,7 @@ import '../../domain/entities/note.dart';
 import '../../domain/repositories/notes_repository.dart';
 import '../datasources/notes_local_datasource.dart';
 
-class NotesRepositoryImpl
-    implements NotesRepository {
+class NotesRepositoryImpl implements NotesRepository {
   final NotesLocalDataSource _localDataSource;
 
   NotesRepositoryImpl(this._localDataSource);
@@ -12,16 +11,14 @@ class NotesRepositoryImpl
   Stream<List<Note>> watchNotesForSubject(
     int subjectId,
   ) {
-    return _localDataSource
-        .watchNotesForSubject(subjectId);
+    return _localDataSource.watchNotesForSubject(subjectId);
   }
 
   @override
   Future<List<Note>> getNotesForSubject(
     int subjectId,
   ) {
-    return _localDataSource
-        .getNotesForSubject(subjectId);
+    return _localDataSource.getNotesForSubject(subjectId);
   }
 
   @override
@@ -42,5 +39,10 @@ class NotesRepositoryImpl
   @override
   Future<void> deleteNote(int id) async {
     await _localDataSource.deleteNote(id);
+  }
+
+  @override
+  Future<void> deleteAllNotes(int subjectId) async {
+    await _localDataSource.deleteAllNotes(subjectId);
   }
 }

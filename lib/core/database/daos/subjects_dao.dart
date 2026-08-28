@@ -5,11 +5,7 @@ import '../database_tables/subjects_table.dart';
 
 part 'subjects_dao.g.dart';
 
-@DriftAccessor(
-  tables: [
-    Subjects,
-  ],
-)
+@DriftAccessor(tables: [Subjects])
 class SubjectsDao extends DatabaseAccessor<AppDatabase>
     with _$SubjectsDaoMixin {
   SubjectsDao(super.db);
@@ -23,11 +19,9 @@ class SubjectsDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<Subject?> getSubjectById(int id) {
-    return (select(subjects)
-          ..where(
-            (table) => table.id.equals(id),
-          ))
-        .getSingleOrNull();
+    return (select(
+      subjects,
+    )..where((table) => table.id.equals(id))).getSingleOrNull();
   }
 
   Future<int> insertSubject(SubjectsCompanion subject) {
@@ -35,14 +29,10 @@ class SubjectsDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<bool> updateSubject(SubjectsCompanion subject) async {
-    return await update(subjects).write(subject) > 0;
+    return await update(subjects).replace(subject);
   }
 
   Future<int> deleteSubject(int id) {
-    return (delete(subjects)
-          ..where(
-            (table) => table.id.equals(id),
-          ))
-        .go();
+    return (delete(subjects)..where((table) => table.id.equals(id))).go();
   }
 }

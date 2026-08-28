@@ -339,7 +339,7 @@ class _AddSubjectScreenState extends ConsumerState<AddSubjectScreen> {
         return;
       }
 
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -348,17 +348,24 @@ class _AddSubjectScreenState extends ConsumerState<AddSubjectScreen> {
           ),
         ),
       );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
+    }
+catch (e, stackTrace) {
+  debugPrint('❌ ERROR SAVING SUBJECT: $e');
+  debugPrint('📍 STACK TRACE:\n$stackTrace');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Something went wrong. Please try again.'),
-        ),
-      );
-    } finally {
+  if (!mounted) {
+    return;
+  }
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('Error: $e'),
+      duration: const Duration(seconds: 5),
+    ),
+  );
+}
+
+     finally {
       if (mounted) {
         setState(() {
           _isSaving = false;

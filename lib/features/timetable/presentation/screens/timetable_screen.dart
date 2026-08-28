@@ -4,48 +4,76 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/utils/date_utils.dart';
+import '../../../attendance/presentation/widgets/mark_attendance_sheet.dart';
 import '../../../subjects/presentation/controllers/subjects_providers.dart';
+import '../../domain/entities/class_schedule.dart';
 import '../controllers/timetable_providers.dart';
 import '../widgets/class_card.dart';
 import '../widgets/day_selector.dart';
+import 'create_class_screen.dart';
 
 class TimetableScreen extends ConsumerStatefulWidget {
   const TimetableScreen({super.key});
 
   @override
-  ConsumerState<TimetableScreen> createState() => _TimetableScreenState();
+  ConsumerState<TimetableScreen> createState() =>
+      _TimetableScreenState();
 }
 
-class _TimetableScreenState extends ConsumerState<TimetableScreen> {
+class _TimetableScreenState
+    extends ConsumerState<TimetableScreen> {
   int _selectedDay = DateTime.now().weekday;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final schedulesAsync = ref.watch(timetableForDayProvider(_selectedDay));
+    final schedulesAsync =
+        ref.watch(
+      timetableForDayProvider(
+        _selectedDay,
+      ),
+    );
 
-    final subjectsAsync = ref.watch(subjectsControllerProvider);
+    final subjectsAsync =
+        ref.watch(subjectsControllerProvider);
 
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
+            // ─────────────────────────────
+            // HEADER
+            // ─────────────────────────────
+
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                padding:
+                    const EdgeInsets.fromLTRB(
+                  20,
+                  24,
+                  20,
+                  0,
+                ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     _Header(
                       onTodayPressed: () {
                         setState(() {
-                          _selectedDay = DateTime.now().weekday;
+                          _selectedDay =
+                              DateTime.now().weekday;
                         });
                       },
                     ),
 
                     const SizedBox(height: 24),
+
+                    // ─────────────────────
+                    // DAY SELECTOR
+                    // ─────────────────────
 
                     DaySelector(
                       selectedDay: _selectedDay,
@@ -58,7 +86,9 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
 
                     const SizedBox(height: 28),
 
-                    _DayHeading(weekday: _selectedDay),
+                    _DayHeading(
+                      weekday: _selectedDay,
+                    ),
 
                     const SizedBox(height: 16),
                   ],
@@ -66,11 +96,18 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
               ),
             ),
 
+            // ─────────────────────────────
+            // SCHEDULES
+            // ─────────────────────────────
+
             schedulesAsync.when(
               loading: () {
                 return const SliverFillRemaining(
                   hasScrollBody: false,
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(
+                    child:
+                        CircularProgressIndicator(),
+                  ),
                 );
               },
 
@@ -79,21 +116,30 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
                   hasScrollBody: false,
                   child: _ErrorState(
                     onRetry: () {
-                      ref.invalidate(timetableForDayProvider(_selectedDay));
+                      ref.invalidate(
+                        timetableForDayProvider(
+                          _selectedDay,
+                        ),
+                      );
                     },
                   ),
                 );
               },
 
               data: (schedules) {
-                final subjects = subjectsAsync.maybeWhen(
+                final subjects =
+                    subjectsAsync.maybeWhen(
                   data: (items) => items,
                   orElse: () => const [],
                 );
 
-                String subjectName(int subjectId) {
-                  for (final subject in subjects) {
-                    if (subject.id == subjectId) {
+                String subjectName(
+                  int subjectId,
+                ) {
+                  for (final subject
+                      in subjects) {
+                    if (subject.id ==
+                        subjectId) {
                       return subject.name;
                     }
                   }
@@ -109,24 +155,73 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
                 }
 
                 return SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-                  sliver: SliverList.separated(
-                    itemCount: schedules.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final schedule = schedules[index];
+                  padding:
+                      const EdgeInsets.fromLTRB(
+                    20,
+                    0,
+                    20,
+                    120,
+                  ),
+                  sliver:
+                      SliverList.separated(
+                    itemCount:
+                        schedules.length,
+                    separatorBuilder:
+                        (_, __) =>
+                            const SizedBox(
+                      height: 12,
+                    ),
+                    itemBuilder:
+                        (context, index) {
+                      final schedule =
+                          schedules[index];
+
+                      final name =
+                          subjectName(
+                        schedule.subjectId,
+                      );
 
                       return ClassCard(
                         schedule: schedule,
-                        subjectName: subjectName(schedule.subjectId),
+                        subjectName: name,
+
+                        // Tap class
+                        // = attendance
                         onTap: () {
-                          // Edit class will be added
-                          // in the next iteration.
+                          showMarkAttendanceSheet(
+                            context: context,
+                            schedule: schedule,
+                            subjectName: name,
+                          );
                         },
+
+                        // Edit
+                        onEdit: () async {
+                          await _editSchedule(
+                            schedule,
+                          );
+                        },
+
+                        // Swipe right
+                        // = delete
                         onDelete: () async {
                           await ref
-                              .read(timetableRepositoryProvider)
-                              .deleteSchedule(schedule.id);
+                              .read(
+                                timetableRepositoryProvider,
+                              )
+                              .deleteSchedule(
+                                schedule.id,
+                              );
+
+                          if (!mounted) {
+                            return;
+                          }
+
+                          ref.invalidate(
+                            timetableForDayProvider(
+                              _selectedDay,
+                            ),
+                          );
                         },
                       );
                     },
@@ -138,21 +233,75 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
         ),
       ),
 
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          context.push('${RouteNames.timetable}/create');
+      // ─────────────────────────────
+      // ADD CLASS
+      // ─────────────────────────────
+
+      floatingActionButton:
+          FloatingActionButton.extended(
+        onPressed: () async {
+          final result =
+              await context.push<bool>(
+            '${RouteNames.timetable}/create',
+          );
+
+          if (result == true) {
+            ref.invalidate(
+              timetableForDayProvider(
+                _selectedDay,
+              ),
+            );
+          }
         },
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add class'),
+        icon: const Icon(
+          Icons.add_rounded,
+        ),
+        label: const Text(
+          'Add class',
+        ),
       ),
     );
   }
+
+  // ─────────────────────────────────────
+  // EDIT
+  // ─────────────────────────────────────
+
+  Future<void> _editSchedule(
+    ClassSchedule schedule,
+  ) async {
+    final result =
+        await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            CreateClassScreen(
+          schedule: schedule,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (result == true) {
+      ref.invalidate(
+        timetableForDayProvider(
+          _selectedDay,
+        ),
+      );
+    }
+  }
 }
+
+// ─────────────────────────────────────────
+// HEADER
+// ─────────────────────────────────────────
 
 class _Header extends StatelessWidget {
   final VoidCallback onTodayPressed;
 
-  const _Header({required this.onTodayPressed});
+  const _Header({
+    required this.onTodayPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -162,20 +311,30 @@ class _Header extends StatelessWidget {
       children: [
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
                 'Timetable',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
+                style: theme
+                    .textTheme
+                    .headlineMedium
+                    ?.copyWith(
+                  fontWeight:
+                      FontWeight.w800,
                   letterSpacing: -1.2,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 'Your weekly rhythm.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                style: theme
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                  color: theme
+                      .colorScheme
+                      .onSurfaceVariant,
                 ),
               ),
             ],
@@ -183,14 +342,20 @@ class _Header extends StatelessWidget {
         ),
 
         Material(
-          color: theme.colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(15),
+          color: theme
+              .colorScheme
+              .surfaceContainer,
+          borderRadius:
+              BorderRadius.circular(15),
           child: InkWell(
             onTap: onTodayPressed,
-            borderRadius: BorderRadius.circular(15),
+            borderRadius:
+                BorderRadius.circular(15),
             child: const Padding(
               padding: EdgeInsets.all(12),
-              child: Icon(Icons.today_outlined),
+              child: Icon(
+                Icons.today_outlined,
+              ),
             ),
           ),
         ),
@@ -199,37 +364,56 @@ class _Header extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────
+// DAY HEADING
+// ─────────────────────────────────────────
+
 class _DayHeading extends StatelessWidget {
   final int weekday;
 
-  const _DayHeading({required this.weekday});
+  const _DayHeading({
+    required this.weekday,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final date = _dateForWeekday(weekday);
+    final date =
+        dateForWeekday(weekday);
 
-    final dayName = _weekdayName(weekday);
+    final dayName =
+        _weekdayName(weekday);
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment:
+          CrossAxisAlignment.end,
       children: [
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
                 dayName,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
+                style: theme
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 3),
               Text(
                 '${date.day} ${_monthName(date.month)}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                style: theme
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(
+                  color: theme
+                      .colorScheme
+                      .onSurfaceVariant,
                 ),
               ),
             ],
@@ -238,20 +422,20 @@ class _DayHeading extends StatelessWidget {
 
         Text(
           'SCHEDULE',
-          style: theme.textTheme.labelSmall?.copyWith(
-            fontWeight: FontWeight.w800,
+          style: theme
+              .textTheme
+              .labelSmall
+              ?.copyWith(
+            fontWeight:
+                FontWeight.w800,
             letterSpacing: 1.2,
-            color: theme.colorScheme.onSurfaceVariant,
+            color: theme
+                .colorScheme
+                .onSurfaceVariant,
           ),
         ),
       ],
     );
-  }
-
-  DateTime _dateForWeekday(int weekday) {
-    final today = DateTime.now();
-
-    return today.add(Duration(days: weekday - today.weekday));
   }
 
   String _weekdayName(int day) {
@@ -288,6 +472,10 @@ class _DayHeading extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────
+// EMPTY STATE
+// ─────────────────────────────────────────
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
@@ -297,21 +485,31 @@ class _EmptyState extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
+        padding:
+            const EdgeInsets.symmetric(
+          horizontal: 40,
+        ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment:
+              MainAxisAlignment.center,
           children: [
             Container(
               width: 82,
               height: 82,
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(26),
+                color: theme
+                    .colorScheme
+                    .surfaceContainerHighest,
+                borderRadius:
+                    BorderRadius.circular(26),
               ),
               child: Icon(
-                Icons.calendar_month_outlined,
+                Icons
+                    .calendar_month_outlined,
                 size: 36,
-                color: theme.colorScheme.onSurfaceVariant,
+                color: theme
+                    .colorScheme
+                    .onSurfaceVariant,
               ),
             ),
 
@@ -319,8 +517,12 @@ class _EmptyState extends StatelessWidget {
 
             Text(
               'Nothing scheduled',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
+              style: theme
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
 
@@ -330,9 +532,14 @@ class _EmptyState extends StatelessWidget {
               'Enjoy the free time. Your schedule '
               'is clear for this day.',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
+              style: theme
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(
                 height: 1.5,
-                color: theme.colorScheme.onSurfaceVariant,
+                color: theme
+                    .colorScheme
+                    .onSurfaceVariant,
               ),
             ),
           ],
@@ -342,46 +549,41 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────
+// ERROR STATE
+// ─────────────────────────────────────────
+
 class _ErrorState extends StatelessWidget {
   final VoidCallback onRetry;
 
-  const _ErrorState({required this.onRetry});
+  const _ErrorState({
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment:
+            MainAxisAlignment.center,
         children: [
-          const Icon(Icons.cloud_off_outlined, size: 42),
+          const Icon(
+            Icons.cloud_off_outlined,
+            size: 42,
+          ),
           const SizedBox(height: 14),
-          const Text('Something went wrong'),
+          const Text(
+            'Something went wrong',
+          ),
           const SizedBox(height: 12),
-          OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
+          OutlinedButton(
+            onPressed: onRetry,
+            child: const Text(
+              'Try again',
+            ),
+          ),
         ],
       ),
     );
   }
-}
-
-String _weekdayName(int day) {
-  const names = [
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday',
-  ];
-
-  return names[day - 1];
-}
-
-const _RoutePaths timetableRoutePaths = _RoutePaths();
-
-class _RoutePaths {
-  const _RoutePaths();
-
-  String get timetable => '/timetable';
 }

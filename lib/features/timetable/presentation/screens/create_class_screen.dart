@@ -1,13 +1,21 @@
-import 'package:alfred/features/subjects/presentation/controllers/subjects_controller.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../subjects/presentation/controllers/subjects_controller.dart';
 import '../../../subjects/presentation/controllers/subjects_providers.dart';
 import '../../domain/entities/class_schedule.dart';
 import '../controllers/timetable_providers.dart';
 
 class CreateClassScreen extends ConsumerStatefulWidget {
-  const CreateClassScreen({super.key});
+  final ClassSchedule? schedule;
+
+  const CreateClassScreen({
+    super.key,
+    this.schedule,
+  });
+
+  bool get isEditing => schedule != null;
 
   @override
   ConsumerState<CreateClassScreen> createState() =>
@@ -35,6 +43,25 @@ class _CreateClassScreenState
   bool _saving = false;
 
   @override
+  void initState() {
+    super.initState();
+
+    final schedule = widget.schedule;
+
+    if (schedule != null) {
+      _selectedSubjectId = schedule.subjectId;
+      _weekday = schedule.weekday;
+
+      _startTime = _parseTime(schedule.startTime);
+      _endTime = _parseTime(schedule.endTime);
+
+      _roomController.text = schedule.room ?? '';
+      _teacherController.text = schedule.teacher ?? '';
+      _notesController.text = schedule.notes ?? '';
+    }
+  }
+
+  @override
   void dispose() {
     _roomController.dispose();
     _teacherController.dispose();
@@ -48,7 +75,9 @@ class _CreateClassScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add class'),
+        title: Text(
+          widget.isEditing ? 'Edit class' : 'Add class',
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -63,6 +92,7 @@ class _CreateClassScreenState
             // ─────────────────────────────
             // DAY
             // ─────────────────────────────
+
             DropdownButtonFormField<int>(
               value: _weekday,
               decoration: const InputDecoration(
@@ -97,6 +127,7 @@ class _CreateClassScreenState
             // ─────────────────────────────
             // SUBJECT
             // ─────────────────────────────
+
             subjectsAsync.when(
               loading: () {
                 return const InputDecorator(
@@ -121,7 +152,7 @@ class _CreateClassScreenState
                     prefixIcon:
                         Icon(Icons.error_outline_rounded),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Unable to load subjects',
                     style: TextStyle(
                       color: Colors.red,
@@ -147,8 +178,7 @@ class _CreateClassScreenState
                 return DropdownButtonFormField<int>(
                   value: _selectedSubjectId,
                   isExpanded: true,
-                  decoration:
-                      const InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Subject',
                     prefixIcon: Icon(
                       Icons.menu_book_outlined,
@@ -165,8 +195,24 @@ class _CreateClassScreenState
                     );
                   }).toList(),
                   onChanged: (value) {
+                    if (value == null) return;
+
+                    final selectedSubject =
+                        subjects.firstWhere(
+                      (subject) =>
+                          subject.id == value,
+                    );
+
                     setState(() {
                       _selectedSubjectId = value;
+
+                      // Automatically take these values
+                      // from the selected subject.
+                      _roomController.text =
+                          selectedSubject.room ?? '';
+
+                      _teacherController.text =
+                          selectedSubject.instructor ?? '';
                     });
                   },
                   validator: (value) {
@@ -185,6 +231,7 @@ class _CreateClassScreenState
             // ─────────────────────────────
             // TIME
             // ─────────────────────────────
+
             Row(
               children: [
                 Expanded(
@@ -214,13 +261,15 @@ class _CreateClassScreenState
             // ─────────────────────────────
             // ROOM
             // ─────────────────────────────
+
             TextFormField(
               controller: _roomController,
               textInputAction:
                   TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'Room',
-                hintText: 'Optional',
+                hintText:
+                    'Automatically filled from subject',
                 prefixIcon:
                     Icon(Icons.location_on_outlined),
               ),
@@ -229,15 +278,17 @@ class _CreateClassScreenState
             const SizedBox(height: 18),
 
             // ─────────────────────────────
-            // TEACHER
+            // INSTRUCTOR
             // ─────────────────────────────
+
             TextFormField(
               controller: _teacherController,
               textInputAction:
                   TextInputAction.next,
               decoration: const InputDecoration(
-                labelText: 'Teacher',
-                hintText: 'Optional',
+                labelText: 'Instructor',
+                hintText:
+                    'Automatically filled from subject',
                 prefixIcon:
                     Icon(Icons.person_outline_rounded),
               ),
@@ -248,6 +299,7 @@ class _CreateClassScreenState
             // ─────────────────────────────
             // NOTES
             // ─────────────────────────────
+
             TextFormField(
               controller: _notesController,
               maxLines: 4,
@@ -266,8 +318,9 @@ class _CreateClassScreenState
             const SizedBox(height: 30),
 
             // ─────────────────────────────
-            // SAVE
+            // SAVE / UPDATE
             // ─────────────────────────────
+
             SizedBox(
               height: 52,
               child: FilledButton(
@@ -282,9 +335,11 @@ class _CreateClassScreenState
                           strokeWidth: 2,
                         ),
                       )
-                    : const Text(
-                        'Save class',
-                        style: TextStyle(
+                    : Text(
+                        widget.isEditing
+                            ? 'Update class'
+                            : 'Save class',
+                        style: const TextStyle(
                           fontWeight:
                               FontWeight.w700,
                         ),
@@ -332,7 +387,7 @@ class _CreateClassScreenState
   }
 
   // ─────────────────────────────────────
-  // SAVE
+  // SAVE / UPDATE
   // ─────────────────────────────────────
 
   Future<void> _save() async {
@@ -366,7 +421,7 @@ class _CreateClassScreenState
       final now = DateTime.now();
 
       final schedule = ClassSchedule(
-        id: 0,
+        id: widget.schedule?.id ?? 0,
         subjectId: _selectedSubjectId!,
         weekday: _weekday,
         startTime: _formatTime(_startTime),
@@ -380,18 +435,25 @@ class _CreateClassScreenState
         notes: _emptyToNull(
           _notesController.text,
         ),
-        isActive: true,
-        createdAt: now,
+        isActive:
+            widget.schedule?.isActive ?? true,
+        createdAt:
+            widget.schedule?.createdAt ?? now,
         updatedAt: now,
       );
 
-      await ref
-          .read(timetableRepositoryProvider)
-          .createSchedule(schedule);
+      final repository =
+          ref.read(timetableRepositoryProvider);
+
+      if (widget.isEditing) {
+        await repository.updateSchedule(schedule);
+      } else {
+        await repository.createSchedule(schedule);
+      }
 
       if (!mounted) return;
 
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) return;
 
@@ -399,7 +461,9 @@ class _CreateClassScreenState
           .showSnackBar(
         SnackBar(
           content: Text(
-            'Unable to save class: $error',
+            widget.isEditing
+                ? 'Unable to update class: $error'
+                : 'Unable to save class: $error',
           ),
         ),
       );
@@ -434,6 +498,50 @@ class _CreateClassScreenState
             : 'PM';
 
     return '$hour:$minute $period';
+  }
+
+  TimeOfDay _parseTime(String value) {
+    try {
+      final parts = value.trim().split(' ');
+
+      if (parts.length < 2) {
+        return const TimeOfDay(
+          hour: 9,
+          minute: 0,
+        );
+      }
+
+      final timeParts = parts[0].split(':');
+
+      final parsedHour =
+          int.parse(timeParts[0]);
+
+      final parsedMinute =
+          int.parse(timeParts[1]);
+
+      final period =
+          parts[1].toUpperCase();
+
+      var hour = parsedHour;
+
+      if (period == 'PM' && hour != 12) {
+        hour += 12;
+      }
+
+      if (period == 'AM' && hour == 12) {
+        hour = 0;
+      }
+
+      return TimeOfDay(
+        hour: hour,
+        minute: parsedMinute,
+      );
+    } catch (_) {
+      return const TimeOfDay(
+        hour: 9,
+        minute: 0,
+      );
+    }
   }
 
   String? _emptyToNull(String value) {
@@ -497,3 +605,4 @@ class _TimeField extends StatelessWidget {
     );
   }
 }
+

@@ -42,6 +42,62 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
     });
   }
 
+  Widget _buildDeleteBackground() {
+    return Container(
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: AppDimensions.space20),
+      color: AppColors.error,
+      child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+    );
+  }
+
+  Future<bool> _confirmDeleteSubject(Subject subject) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete subject?'),
+        content: Text(
+          'This will permanently delete "${subject.name}" and all its notes.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    return confirm ?? false;
+  }
+
+  Future<void> _deleteSubject(Subject subject) async {
+    try {
+      await ref
+          .read(subjectsControllerProvider.notifier)
+          .deleteSubject(subject.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${subject.name} deleted')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to delete subject: $e')));
+    }
+  }
+
+  void _onEditSubject(Subject subject) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => AddSubjectScreen(subject: subject)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final subjectsAsync = ref.watch(subjectsControllerProvider);
@@ -97,11 +153,21 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
                     itemBuilder: (context, index) {
                       final subject = filteredSubjects[index];
 
-                      return SubjectTile(
-                        subject: subject,
-                        onTap: () {
-                          _onSubjectTap(subject.id);
-                        },
+                      return Dismissible(
+                        key: ValueKey('subject-${subject.id}'),
+                        direction: DismissDirection.startToEnd,
+                        background: _buildDeleteBackground(),
+                        confirmDismiss: (_) => _confirmDeleteSubject(subject),
+                        onDismissed: (_) => _deleteSubject(subject),
+                        child: GestureDetector(
+                          onLongPress: () => _onEditSubject(subject),
+                          child: SubjectTile(
+                            subject: subject,
+                            onTap: () {
+                              _onSubjectTap(subject.id);
+                            },
+                          ),
+                        ),
                       );
                     },
                   ),

@@ -16,4 +16,6 @@ abstract interface class NotesRepository {
   Future<bool> updateNote(Note note);
 
   Future<void> deleteNote(int id);
+
+  Future<void> deleteAllNotes(int subjectId);
 }

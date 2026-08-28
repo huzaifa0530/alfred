@@ -46,6 +46,11 @@ dependencies:
   file_picker: ^12.1.0
   record: ^7.1.1
   audioplayers: ^6.8.1
+  just_audio: ^0.10.6
+  archive: ^4.2.0
+  shared_preferences: ^2.5.5
+  share_plus: ^13.3.0
+  google_generative_ai: ^0.4.7
 
 dev_dependencies:
   flutter_test:
@@ -64,12 +69,91 @@ dev_dependencies:
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
-flutter:
 
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
+flutter:
   uses-material-design: true
+
+  fonts:
+    # ============================================================
+    # RAJDHANI
+    # Primary UI / headings / navigation
+    # ============================================================
+    - family: Rajdhani
+      fonts:
+        - asset: assets/fonts/Rajdhani/Rajdhani-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Rajdhani/Rajdhani-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Rajdhani/Rajdhani-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Rajdhani/Rajdhani-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Rajdhani/Rajdhani-Bold.ttf
+          weight: 700
+
+    # ============================================================
+    # INTER
+    # Body / descriptions / normal readable text
+    # ============================================================
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter/static/Inter_18pt-Thin.ttf
+          weight: 100
+        - asset: assets/fonts/Inter/static/Inter_18pt-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/Inter/static/Inter_18pt-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Inter/static/Inter_18pt-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter/static/Inter_18pt-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter/static/Inter_18pt-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter/static/Inter_18pt-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Inter/static/Inter_18pt-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/Inter/static/Inter_18pt-Black.ttf
+          weight: 900
+
+    # ============================================================
+    # CINZEL
+    # Alfred branding / elegant titles
+    # ============================================================
+    - family: Cinzel
+      fonts:
+        - asset: assets/fonts/Cinzel/static/Cinzel-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Cinzel/static/Cinzel-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Cinzel/static/Cinzel-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Cinzel/static/Cinzel-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Cinzel/static/Cinzel-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/Cinzel/static/Cinzel-Black.ttf
+          weight: 900
+
+    # ============================================================
+    # ORBITRON
+    # AI / system status / futuristic numbers
+    # ============================================================
+    - family: Orbitron
+      fonts:
+        - asset: assets/fonts/Orbitron/static/Orbitron-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Orbitron/static/Orbitron-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Orbitron/static/Orbitron-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Orbitron/static/Orbitron-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Orbitron/static/Orbitron-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/Orbitron/static/Orbitron-Black.ttf
+          weight: 900
+
 
   # To add assets to your application, add an assets section, like this:
   # assets:

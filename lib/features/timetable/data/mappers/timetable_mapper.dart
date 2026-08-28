@@ -6,6 +6,10 @@ import '../../domain/entities/class_schedule.dart';
 class TimetableMapper {
   const TimetableMapper._();
 
+  // ─────────────────────────────────────────
+  // DATABASE → DOMAIN
+  // ─────────────────────────────────────────
+
   static ClassSchedule fromDatabase(
     database.ClassSchedule data,
   ) {
@@ -24,14 +28,19 @@ class TimetableMapper {
     );
   }
 
+  // ─────────────────────────────────────────
+  // DOMAIN → DATABASE
+  // ─────────────────────────────────────────
+
   static database.ClassSchedulesCompanion toCompanion(
     ClassSchedule schedule,
   ) {
-    return database.ClassSchedulesCompanion.insert(
-      subjectId: schedule.subjectId,
-      weekday: schedule.weekday,
-      startTime: schedule.startTime,
-      endTime: schedule.endTime,
+    return database.ClassSchedulesCompanion(
+      id: Value(schedule.id),
+      subjectId: Value(schedule.subjectId),
+      weekday: Value(schedule.weekday),
+      startTime: Value(schedule.startTime),
+      endTime: Value(schedule.endTime),
       room: Value(schedule.room),
       teacher: Value(schedule.teacher),
       notes: Value(schedule.notes),

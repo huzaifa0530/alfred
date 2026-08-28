@@ -14,8 +14,9 @@ class NotesDao extends DatabaseAccessor<AppDatabase>
     int subjectId,
   ) {
     return (select(attachedDatabase.notes)
-          ..where((note) =>
-              note.subjectId.equals(subjectId))
+          ..where(
+            (note) => note.subjectId.equals(subjectId),
+          )
           ..orderBy([
             (note) => OrderingTerm(
                   expression: note.createdAt,
@@ -29,8 +30,9 @@ class NotesDao extends DatabaseAccessor<AppDatabase>
     int subjectId,
   ) {
     return (select(attachedDatabase.notes)
-          ..where((note) =>
-              note.subjectId.equals(subjectId))
+          ..where(
+            (note) => note.subjectId.equals(subjectId),
+          )
           ..orderBy([
             (note) => OrderingTerm(
                   expression: note.createdAt,
@@ -42,7 +44,9 @@ class NotesDao extends DatabaseAccessor<AppDatabase>
 
   Future<Note?> getNoteById(int id) {
     return (select(attachedDatabase.notes)
-          ..where((note) => note.id.equals(id)))
+          ..where(
+            (note) => note.id.equals(id),
+          ))
         .getSingleOrNull();
   }
 
@@ -60,7 +64,17 @@ class NotesDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> deleteNote(int id) {
     return (delete(attachedDatabase.notes)
-          ..where((note) => note.id.equals(id)))
+          ..where(
+            (note) => note.id.equals(id),
+          ))
+        .go();
+  }
+
+  Future<int> deleteAllNotes(int subjectId) {
+    return (delete(attachedDatabase.notes)
+          ..where(
+            (note) => note.subjectId.equals(subjectId),
+          ))
         .go();
   }
 }

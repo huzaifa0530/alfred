@@ -96,6 +96,7 @@ class _EventsScreenState
       floatingActionButton:
           FloatingActionButton.extended(
         onPressed: () {
+          
           context.push(
             '/events/create',
           );

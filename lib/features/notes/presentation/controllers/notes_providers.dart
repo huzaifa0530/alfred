@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/ai/ai_providers.dart';
 import '../../../../core/database/daos/notes_dao.dart';
 import '../../../../core/database/database_providers.dart';
 import '../../data/datasources/notes_local_datasource.dart';
@@ -10,6 +11,9 @@ import '../../domain/usecases/delete_note.dart';
 import '../../domain/usecases/get_note.dart';
 import '../../domain/usecases/get_notes.dart';
 
+import '../../domain/usecases/summarize_note.dart';
+
+import '../../domain/usecases/parse_note_prompt.dart';
 final notesDaoProvider = Provider<NotesDao>((ref) {
   final database = ref.watch(appDatabaseProvider);
 
@@ -52,4 +56,14 @@ final deleteNoteProvider = Provider<DeleteNote>((ref) {
   return DeleteNote(
     ref.watch(notesRepositoryProvider),
   );
+});
+
+
+final summarizeNoteProvider = Provider<SummarizeNote>((ref) {
+  return SummarizeNote(ref.watch(geminiClientProvider));
+});
+
+
+final parseNotePromptProvider = Provider<ParseNotePrompt>((ref) {
+  return ParseNotePrompt(ref.watch(geminiClientProvider));
 });

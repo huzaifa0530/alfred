@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alfred/features/marks/presentation/controllers/marks_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/subject.dart';
@@ -11,8 +12,8 @@ import 'subjects_providers.dart';
 
 final subjectsControllerProvider =
     AsyncNotifierProvider<SubjectsController, List<Subject>>(
-  SubjectsController.new,
-);
+      SubjectsController.new,
+    );
 
 class SubjectsController extends AsyncNotifier<List<Subject>> {
   late final GetSubjects _getSubjects;
@@ -73,7 +74,17 @@ class SubjectsController extends AsyncNotifier<List<Subject>> {
     );
 
     try {
-      await _createSubject(subject);
+      final subjectId = await _createSubject(subject);
+
+      // Best-effort: don't fail subject creation if the template
+      // insert has a hiccup — the user can still add marks manually.
+      try {
+        await ref
+            .read(marksControllerProvider)
+            .createDefaultComponents(subjectId);
+      } catch (_) {
+        // Swallow — subject itself was created successfully.
+      }
     } catch (error, stackTrace) {
       state = AsyncError(error, stackTrace);
       rethrow;
@@ -81,9 +92,7 @@ class SubjectsController extends AsyncNotifier<List<Subject>> {
   }
 
   Future<void> updateSubject(Subject subject) async {
-    final updatedSubject = subject.copyWith(
-      updatedAt: DateTime.now(),
-    );
+    final updatedSubject = subject.copyWith(updatedAt: DateTime.now());
 
     try {
       await _updateSubject(updatedSubject);
