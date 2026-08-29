@@ -8,6 +8,8 @@ import '../../domain/usecases/answer_from_marks.dart';
 import '../../domain/usecases/answer_from_notes.dart';
 import '../../domain/usecases/answer_from_timetable.dart';
 import '../../domain/usecases/parse_assistant_prompt.dart';
+import '../../domain/usecases/answer_general.dart';
+
 
 final parseAssistantPromptProvider = Provider<ParseAssistantPrompt>((ref) {
   return ParseAssistantPrompt(ref.watch(geminiClientProvider));
@@ -31,4 +33,7 @@ final answerFromEventsProvider = Provider<AnswerFromEvents>((ref) {
 
 final answerFromAttendanceProvider = Provider<AnswerFromAttendance>((ref) {
   return AnswerFromAttendance(ref.watch(geminiClientProvider));
+});
+final answerGeneralProvider = Provider<AnswerGeneral>((ref) {
+  return AnswerGeneral(ref.watch(geminiClientProvider));
 });

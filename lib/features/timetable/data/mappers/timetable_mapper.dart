@@ -2,7 +2,6 @@ import 'package:drift/drift.dart';
 
 import '../../../../core/database/app_database.dart' as database;
 import '../../domain/entities/class_schedule.dart';
-
 class TimetableMapper {
   const TimetableMapper._();
 
@@ -10,9 +9,7 @@ class TimetableMapper {
   // DATABASE → DOMAIN
   // ─────────────────────────────────────────
 
-  static ClassSchedule fromDatabase(
-    database.ClassSchedule data,
-  ) {
+  static ClassSchedule fromDatabase(database.ClassSchedule data) {
     return ClassSchedule(
       id: data.id,
       subjectId: data.subjectId,
@@ -29,12 +26,29 @@ class TimetableMapper {
   }
 
   // ─────────────────────────────────────────
-  // DOMAIN → DATABASE
+  // DOMAIN → DATABASE (for INSERT — id omitted, autoincrement assigns it)
   // ─────────────────────────────────────────
 
-  static database.ClassSchedulesCompanion toCompanion(
-    ClassSchedule schedule,
-  ) {
+  static database.ClassSchedulesCompanion toInsertCompanion(ClassSchedule schedule) {
+    return database.ClassSchedulesCompanion.insert(
+      subjectId: schedule.subjectId,
+      weekday: schedule.weekday,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      room: Value(schedule.room),
+      teacher: Value(schedule.teacher),
+      notes: Value(schedule.notes),
+      isActive: Value(schedule.isActive),
+      createdAt: Value(schedule.createdAt),
+      updatedAt: Value(schedule.updatedAt),
+    );
+  }
+
+  // ─────────────────────────────────────────
+  // DOMAIN → DATABASE (for UPDATE — id required, identifies the row)
+  // ─────────────────────────────────────────
+
+  static database.ClassSchedulesCompanion toUpdateCompanion(ClassSchedule schedule) {
     return database.ClassSchedulesCompanion(
       id: Value(schedule.id),
       subjectId: Value(schedule.subjectId),
@@ -50,3 +64,4 @@ class TimetableMapper {
     );
   }
 }
+

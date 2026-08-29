@@ -46,22 +46,17 @@ class TimetableLocalDataSource {
         .fromDatabase(data);
   }
 
-  Future<int> createSchedule(
-    ClassSchedule schedule,
-  ) {
-    return _dao.insertSchedule(
-      TimetableMapper.toCompanion(schedule),
-    );
-  }
+Future<int> createSchedule(ClassSchedule schedule) {
+  return _dao.insertSchedule(
+    TimetableMapper.toInsertCompanion(schedule), // was toCompanion
+  );
+}
 
-  Future<void> updateSchedule(
-    ClassSchedule schedule,
-  ) async {
-    await _dao.updateSchedule(
-      TimetableMapper.toCompanion(schedule),
-    );
-  }
-
+Future<void> updateSchedule(ClassSchedule schedule) async {
+  await _dao.updateSchedule(
+    TimetableMapper.toUpdateCompanion(schedule), // was toCompanion
+  );
+}
   Future<void> deleteSchedule(
     int id,
   ) async {

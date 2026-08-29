@@ -12,3 +12,10 @@ DateTime dateForWeekday(int weekday) {
   final resolved = today.add(Duration(days: weekday - today.weekday));
   return normalizeDate(resolved);
 }
+
+bool? _asBool(dynamic value) {
+  if (value == null) return null;
+  if (value is bool) return value;
+  if (value is String) return value.toLowerCase() == 'true';
+  return null;
+}

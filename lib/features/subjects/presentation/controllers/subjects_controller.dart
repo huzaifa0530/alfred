@@ -52,45 +52,44 @@ class SubjectsController extends AsyncNotifier<List<Subject>> {
     );
   }
 
-  Future<void> createSubject({
-    required String name,
-    String? code,
-    String? instructor,
-    String? room,
-    String? color,
-  }) async {
-    final now = DateTime.now();
+Future<int> createSubject({
+  required String name,
+  String? code,
+  String? instructor,
+  String? room,
+  String? color,
+}) async {
+  final now = DateTime.now();
 
-    final subject = Subject(
-      id: 0,
-      name: name.trim(),
-      code: _clean(code),
-      instructor: _clean(instructor),
-      room: _clean(room),
-      color: _clean(color),
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-    );
+  final subject = Subject(
+    id: 0,
+    name: name.trim(),
+    code: _clean(code),
+    instructor: _clean(instructor),
+    room: _clean(room),
+    color: _clean(color),
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+  );
 
+  try {
+    final subjectId = await _createSubject(subject);
+
+    // Best-effort: don't fail subject creation if the template
+    // insert has a hiccup — the user can still add marks manually.
     try {
-      final subjectId = await _createSubject(subject);
-
-      // Best-effort: don't fail subject creation if the template
-      // insert has a hiccup — the user can still add marks manually.
-      try {
-        await ref
-            .read(marksControllerProvider)
-            .createDefaultComponents(subjectId);
-      } catch (_) {
-        // Swallow — subject itself was created successfully.
-      }
-    } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
-      rethrow;
+      await ref.read(marksControllerProvider).createDefaultComponents(subjectId);
+    } catch (_) {
+      // Swallow — subject itself was created successfully.
     }
-  }
 
+    return subjectId;
+  } catch (error, stackTrace) {
+    state = AsyncError(error, stackTrace);
+    rethrow;
+  }
+}
   Future<void> updateSubject(Subject subject) async {
     final updatedSubject = subject.copyWith(updatedAt: DateTime.now());
 

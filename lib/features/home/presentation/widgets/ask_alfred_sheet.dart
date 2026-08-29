@@ -1,8 +1,9 @@
-import 'package:alfred/features/assistant/presentation/controllers/assistant_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+
 import '../../../assistant/domain/entities/assistant_intent.dart';
+import '../../../assistant/presentation/controllers/assistant_provider.dart';
 
 import '../../../attendance/domain/entities/attendance_record.dart';
 import '../../../attendance/presentation/controllers/attendance_providers.dart';
@@ -41,69 +42,72 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
   String? _errorText;
   String? _answerText;
 
-  Subject? _selectedSubject; // used by the note-confirm step
-  AssistantIntent? _pendingIntent; // used by the generic confirm step
-  Subject? _pendingSubject;
+  Subject? _selectedSubject; // used only by the dedicated single-note flow
+
+  // The orchestrator's working state for a confirmed multi-step batch.
+  List<AssistantIntent> _pendingIntents = [];
+  List<Subject> _knownSubjects = []; // grows as subjects are created mid-batch
 
   DateTime? _lastRequestAt;
 
   bool get _isCoolingDown {
     if (_lastRequestAt == null) return false;
-    return DateTime.now().difference(_lastRequestAt!) <
-        const Duration(seconds: 13);
+    return DateTime.now().difference(_lastRequestAt!) < const Duration(seconds: 13);
   }
 
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
   bool _speechInitialized = false;
-@override
-void dispose() {
-  _speech.stop();
-  _promptController.dispose();
-  _contentController.dispose();
-  super.dispose();
-}
 
-Future<void> _toggleListening() async {
-  if (_isListening) {
-    await _speech.stop();
-    if (mounted) setState(() => _isListening = false);
-    return;
+  @override
+  void dispose() {
+    _speech.stop();
+    _promptController.dispose();
+    _contentController.dispose();
+    super.dispose();
   }
 
-  if (!_speechInitialized) {
-    _speechInitialized = await _speech.initialize(
-      onStatus: (status) {
-        if ((status == 'done' || status == 'notListening') && mounted) {
-          setState(() => _isListening = false);
-        }
-      },
-      onError: (_) {
-        if (mounted) setState(() => _isListening = false);
+  Future<void> _toggleListening() async {
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+
+    if (!_speechInitialized) {
+      _speechInitialized = await _speech.initialize(
+        onStatus: (status) {
+          if ((status == 'done' || status == 'notListening') && mounted) {
+            setState(() => _isListening = false);
+          }
+        },
+        onError: (_) {
+          if (mounted) setState(() => _isListening = false);
+        },
+      );
+    }
+
+    if (!_speechInitialized) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Speech recognition isn't available on this device.")),
+      );
+      return;
+    }
+
+    setState(() => _isListening = true);
+
+    await _speech.listen(
+      onResult: (result) {
+        setState(() {
+          _promptController.text = result.recognizedWords;
+          _promptController.selection =
+              TextSelection.collapsed(offset: _promptController.text.length);
+        });
       },
     );
   }
 
-  if (!_speechInitialized) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Speech recognition isn't available on this device.")),
-    );
-    return;
-  }
-
-  setState(() => _isListening = true);
-
-  await _speech.listen(
-    onResult: (result) {
-      setState(() {
-        _promptController.text = result.recognizedWords;
-        _promptController.selection =
-            TextSelection.collapsed(offset: _promptController.text.length);
-      });
-    },
-  );
-}
   @override
   Widget build(BuildContext context) {
     final subjectsAsync = ref.watch(subjectsControllerProvider);
@@ -125,13 +129,6 @@ Future<void> _toggleListening() async {
           child: Text('Unable to load subjects: $e'),
         ),
         data: (subjects) {
-          if (subjects.isEmpty) {
-            return const Padding(
-              padding: EdgeInsets.all(24),
-              child: Text('Add a subject first, then Alfred can help with it.'),
-            );
-          }
-
           switch (_step) {
             case _Step.prompt:
               return _buildPromptStep(subjects);
@@ -158,37 +155,35 @@ Future<void> _toggleListening() async {
       children: [
         Text(
           'Ask Alfred',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
         Text(
-          'Try: "Add note to Physics: quiz is Friday"\n'
-          'or: "Mark me present in Physics today"\n'
-          'or: "How am I doing in Chemistry?"',
+          'Try: "Create subject Design, add a note there saying hello, '
+          'and add a quiz event for it"',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 16),
-   TextField(
-  controller: _promptController,
-  autofocus: true,
-  minLines: 2,
-  maxLines: 4,
-  textCapitalization: TextCapitalization.sentences,
-  decoration: InputDecoration(
-    hintText: _isListening ? 'Listening…' : 'Type or speak to Alfred…',
-    border: const OutlineInputBorder(),
-    errorText: _errorText,
-    suffixIcon: IconButton(
-      icon: Icon(
-        _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-        color: _isListening ? Theme.of(context).colorScheme.error : null,
-      ),
-      onPressed: _toggleListening,
-    ),
-  ),
-),     const SizedBox(height: 16),
+        TextField(
+          controller: _promptController,
+          autofocus: true,
+          minLines: 2,
+          maxLines: 4,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(
+            hintText: _isListening ? 'Listening…' : 'Type or speak to Alfred…',
+            border: const OutlineInputBorder(),
+            errorText: _errorText,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                color: _isListening ? Theme.of(context).colorScheme.error : null,
+              ),
+              onPressed: _toggleListening,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
@@ -217,7 +212,7 @@ Future<void> _toggleListening() async {
     );
   }
 
-  // ================= STEP: note-specific confirm (create only) =================
+  // ================= STEP: single-note confirm (only used when the whole prompt is one note) =================
 
   Widget _buildConfirmNoteStep(List<Subject> subjects) {
     return Column(
@@ -226,20 +221,13 @@ Future<void> _toggleListening() async {
       children: [
         Text(
           'Save this note?',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<Subject>(
           initialValue: _selectedSubject,
-          decoration: const InputDecoration(
-            labelText: 'Subject',
-            border: OutlineInputBorder(),
-          ),
-          items: subjects
-              .map((s) => DropdownMenuItem(value: s, child: Text(s.name)))
-              .toList(),
+          decoration: const InputDecoration(labelText: 'Subject', border: OutlineInputBorder()),
+          items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s.name))).toList(),
           onChanged: (value) => setState(() => _selectedSubject = value),
         ),
         const SizedBox(height: 14),
@@ -248,10 +236,7 @@ Future<void> _toggleListening() async {
           minLines: 2,
           maxLines: 6,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            labelText: 'Note content',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'Note content', border: OutlineInputBorder()),
         ),
         const SizedBox(height: 18),
         Row(
@@ -265,7 +250,7 @@ Future<void> _toggleListening() async {
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton(
-                onPressed: _selectedSubject == null ? null : _handleConfirmNote,
+                onPressed: _selectedSubject == null ? null : _handleConfirmSingleNote,
                 child: const Text('Add note'),
               ),
             ),
@@ -275,38 +260,83 @@ Future<void> _toggleListening() async {
     );
   }
 
-  // ================= STEP: generic confirm (everything else) =================
+  // ================= STEP: orchestrated batch confirm =================
 
-  Widget _buildConfirmWriteStep() {
-    final intent = _pendingIntent;
-    final subject = _pendingSubject;
-
-    if (intent == null || subject == null) {
-      // Shouldn't happen, but fail safe back to prompt instead of crashing.
-      return _buildPromptStep(const []);
-    }
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+Widget _buildConfirmWriteStep() {
+  return SizedBox(
+    height: MediaQuery.of(context).size.height * 0.65,
+    child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Confirm action',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          _pendingIntents.length > 1
+              ? 'Confirm these ${_pendingIntents.length} actions'
+              : 'Confirm this action',
+          style: Theme.of(context)
+              .textTheme
+              .titleLarge
+              ?.copyWith(fontWeight: FontWeight.w800),
         ),
+
+        const SizedBox(height: 6),
+
+        if (_pendingIntents.length > 1)
+          Text(
+            "Alfred will carry these out in order — a subject created in an "
+            "earlier step is available to the steps after it.",
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+
         const SizedBox(height: 14),
-        _summaryRow('Subject', subject.name),
-        _summaryRow('Module', intent.module.name),
-        _summaryRow('Action', intent.operation.name),
-        ...intent.fields.entries.map((e) => _summaryRow(e.key, '${e.value}')),
-        const SizedBox(height: 18),
+
+        // Scrollable action list
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              for (var i = 0; i < _pendingIntents.length; i++) ...[
+                _summaryRow('Step', '${i + 1}'),
+                _summaryRow(
+                  'Subject',
+                  _pendingIntents[i].subjectName ??
+                      '(resolved at run time)',
+                ),
+                _summaryRow(
+                  'Module',
+                  _pendingIntents[i].module.name,
+                ),
+                _summaryRow(
+                  'Action',
+                  _pendingIntents[i].operation.name,
+                ),
+
+                ..._pendingIntents[i]
+                    .fields
+                    .entries
+                    .map(
+                      (e) => _summaryRow(
+                        e.key,
+                        '${e.value}',
+                      ),
+                    ),
+
+                if (i != _pendingIntents.length - 1)
+                  const Divider(height: 24),
+              ],
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // Always visible
         Row(
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () => setState(() => _step = _Step.prompt),
+                onPressed: () {
+                  setState(() => _step = _Step.prompt);
+                },
                 child: const Text('Cancel'),
               ),
             ),
@@ -314,33 +344,32 @@ Future<void> _toggleListening() async {
             Expanded(
               child: FilledButton(
                 onPressed: _handleConfirmWrite,
-                child: const Text('Confirm'),
+                child: Text(
+                  _pendingIntents.length > 1
+                      ? 'Confirm All'
+                      : 'Confirm',
+                ),
               ),
             ),
           ],
         ),
       ],
-    );
-  }
-
+    ),
+  );
+}
   Widget _summaryRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          SizedBox(
-            width: 100,
-            child: Text(label, style: Theme.of(context).textTheme.bodySmall),
-          ),
-          Expanded(
-            child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
-          ),
+          SizedBox(width: 100, child: Text(label, style: Theme.of(context).textTheme.bodySmall)),
+          Expanded(child: Text(value, style: Theme.of(context).textTheme.bodyMedium)),
         ],
       ),
     );
   }
 
-  // ================= STEP: answer (read path) =================
+  // ================= STEP: answer (query results / batch results) =================
 
   Widget _buildAnswerStep() {
     return Column(
@@ -353,9 +382,7 @@ Future<void> _toggleListening() async {
             const SizedBox(width: 8),
             Text(
               'Alfred says',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
           ],
         ),
@@ -380,7 +407,7 @@ Future<void> _toggleListening() async {
     );
   }
 
-  // ================= LOGIC: dispatch =================
+  // ================= LOGIC: parse & plan =================
 
   Future<void> _handlePrompt(List<Subject> subjects) async {
     final prompt = _promptController.text.trim();
@@ -388,14 +415,11 @@ Future<void> _toggleListening() async {
 
     if (_isCoolingDown) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Give Alfred a moment before asking again.'),
-        ),
+        const SnackBar(content: Text('Give Alfred a moment before asking again.')),
       );
       return;
     }
-
-    _lastRequestAt = DateTime.now(); // <-- mark the request as starting
+    _lastRequestAt = DateTime.now();
 
     setState(() {
       _errorText = null;
@@ -404,208 +428,185 @@ Future<void> _toggleListening() async {
 
     try {
       final parser = ref.read(parseAssistantPromptProvider);
-      final intent = await parser(
+      final intents = await parser(
         prompt: prompt,
         subjectNames: subjects.map((s) => s.name).toList(),
       );
 
-      final matched = _matchSubject(intent.subjectName, subjects);
-
-      if (intent.module == AssistantModule.unknown ||
-          intent.operation == AssistantOperation.unknown) {
-        setState(() => _step = _Step.prompt);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Alfred didn't understand that — try rephrasing."),
-          ),
-        );
-        return;
+      if (intents.isEmpty) {
+        throw StateError("Alfred couldn't make sense of that.");
       }
 
-      if (intent.operation == AssistantOperation.query) {
-        await _handleQuery(intent, matched, subjects);
-        return;
-      }
-
-      // Notes create keeps its own editable-text confirm screen.
-      if (intent.module == AssistantModule.notes &&
-          intent.operation == AssistantOperation.create) {
+      // Single-item shortcut: a lone note-create keeps the friendlier
+      // editable-text confirm screen instead of the generic batch view.
+      if (intents.length == 1 &&
+          intents.first.module == AssistantModule.notes &&
+          intents.first.operation == AssistantOperation.create) {
+        final matched = _matchSubject(intents.first.subjectName, subjects);
         setState(() {
-          _selectedSubject = matched ?? subjects.first;
-          _contentController.text =
-              (intent.fields['content'] as String?) ?? prompt;
+          _selectedSubject = matched ?? (subjects.isNotEmpty ? subjects.first : null);
+          _contentController.text = (intents.first.fields['content'] as String?) ?? prompt;
           _step = _Step.confirmNoteText;
         });
         return;
       }
 
-      // Everything else: generic summary confirm.
+      // Separate the batch into: things answered immediately (queries,
+      // general chat, unrecognized) vs. things that need confirmation
+      // before writing to the database.
+      final answers = <String>[];
+      final pendingWrites = <AssistantIntent>[];
+
+      for (final intent in intents) {
+        if (intent.module == AssistantModule.general) {
+          final answerer = ref.read(answerGeneralProvider);
+          answers.add(await answerer(intent.question ?? prompt));
+          continue;
+        }
+
+        if (intent.module == AssistantModule.unknown ||
+            intent.operation == AssistantOperation.unknown) {
+          answers.add("I'm afraid that one escapes me, sir.");
+          continue;
+        }
+
+        if (intent.operation == AssistantOperation.query) {
+          final matched = _matchSubject(intent.subjectName, subjects);
+          answers.add(await _resolveQuery(intent, matched, subjects));
+          continue;
+        }
+
+        pendingWrites.add(intent);
+      }
+
+      if (pendingWrites.isNotEmpty) {
+        setState(() {
+          _pendingIntents = pendingWrites;
+          _knownSubjects = List.of(subjects); // orchestrator's live view of subjects
+          _step = _Step.confirmWrite;
+        });
+        return;
+      }
+
+      if (!mounted) return;
       setState(() {
-        _pendingIntent = intent;
-        _pendingSubject = matched ?? subjects.first;
-        _step = _Step.confirmWrite;
+        _answerText = answers.join('\n\n');
+        _step = _Step.answer;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() => _step = _Step.prompt);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Alfred hit an error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Alfred hit an error: $e')));
     }
   }
 
-  Future<void> _handleQuery(
+  // ================= LOGIC: query resolution (read-only, returns text) =================
+
+  Future<String> _resolveQuery(
     AssistantIntent intent,
     Subject? matched,
     List<Subject> subjects,
   ) async {
     switch (intent.module) {
       case AssistantModule.notes:
-        await _handleQueryNotes(intent, matched, subjects);
-        break;
+        {
+          final subject = matched ?? (subjects.isNotEmpty ? subjects.first : null);
+          if (subject == null) return "There are no subjects to check yet, sir.";
+          final notes = await ref.read(getNotesProvider)(subject.id).first;
+          return ref.read(answerFromNotesProvider)(
+            question: intent.question ?? _promptController.text.trim(),
+            subjectName: subject.name,
+            notes: notes,
+          );
+        }
+
       case AssistantModule.marks:
-        await _handleQueryMarks(intent, matched, subjects);
-        break;
+        {
+          final subject = matched ?? (subjects.isNotEmpty ? subjects.first : null);
+          if (subject == null) return "There are no subjects to check yet, sir.";
+          final components = await ref.read(subjectMarkComponentsProvider(subject.id).future);
+          final marks = await ref.read(subjectMarksProvider(subject.id).future);
+          return ref.read(answerFromMarksProvider)(
+            question: intent.question ?? _promptController.text.trim(),
+            subjectName: subject.name,
+            components: components,
+            marks: marks,
+          );
+        }
+
       case AssistantModule.events:
-        await _handleQueryEvents(intent, matched, subjects);
-        break;
+        {
+          final subject = matched ?? (subjects.isNotEmpty ? subjects.first : null);
+          if (subject == null) return "There are no subjects to check yet, sir.";
+          final events = await ref.read(subjectEventsProvider(subject.id).future);
+          return ref.read(answerFromEventsProvider)(
+            question: intent.question ?? _promptController.text.trim(),
+            subjectName: subject.name,
+            events: events,
+          );
+        }
+
       case AssistantModule.attendance:
-        await _handleQueryAttendance(intent, matched, subjects);
-        break;
+        {
+          final subject = matched ?? (subjects.isNotEmpty ? subjects.first : null);
+          if (subject == null) return "There are no subjects to check yet, sir.";
+          final records = await ref.read(attendanceForSubjectProvider(subject.id).future);
+          return ref.read(answerFromAttendanceProvider)(
+            question: intent.question ?? _promptController.text.trim(),
+            subjectName: subject.name,
+            records: records,
+          );
+        }
+
       case AssistantModule.timetable:
-        await _handleQueryTimetable(intent, matched, subjects);
-        break;
+        return _resolveTimetableQuery(intent, matched, subjects);
+
       case AssistantModule.subjects:
+      case AssistantModule.general:
       case AssistantModule.unknown:
-        if (!mounted) return;
-        setState(() => _step = _Step.prompt);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Alfred can't answer that kind of question yet."),
-          ),
-        );
-        break;
+        return "I can't answer that kind of question yet, sir.";
     }
   }
 
-  Future<void> _handleQueryNotes(
+  Future<String> _resolveTimetableQuery(
     AssistantIntent intent,
     Subject? matched,
     List<Subject> subjects,
   ) async {
-    final subject = matched ?? subjects.first;
-    final notes = await ref.read(getNotesProvider)(subject.id).first;
+    final all = await ref.read(allTimetableProvider.future);
 
-    final answer = await ref.read(answerFromNotesProvider)(
+    List<ClassSchedule> relevant =
+        matched != null ? all.where((s) => s.subjectId == matched.id).toList() : all;
+
+    final dayField = intent.fields['day'] as String?;
+    if (dayField != null) {
+      int? targetWeekday;
+      if (dayField.toLowerCase() == 'today') {
+        targetWeekday = DateTime.now().weekday;
+      } else if (dayField.toLowerCase() == 'tomorrow') {
+        targetWeekday = DateTime.now().add(const Duration(days: 1)).weekday;
+      } else {
+        try {
+          targetWeekday = DateTime.parse(dayField).weekday;
+        } catch (_) {}
+      }
+      if (targetWeekday != null) {
+        relevant = relevant.where((s) => s.weekday == targetWeekday).toList();
+      }
+    }
+
+    final subjectLabel = matched?.name ?? 'all subjects';
+
+    return ref.read(answerFromTimetableProvider)(
       question: intent.question ?? _promptController.text.trim(),
-      subjectName: subject.name,
-      notes: notes,
+      subjectName: subjectLabel,
+      schedules: relevant,
     );
-
-    if (!mounted) return;
-    setState(() {
-      _answerText = answer;
-      _step = _Step.answer;
-    });
   }
 
-  Future<void> _handleQueryMarks(
-    AssistantIntent intent,
-    Subject? matched,
-    List<Subject> subjects,
-  ) async {
-    final subject = matched ?? subjects.first;
-    final components = await ref.read(
-      subjectMarkComponentsProvider(subject.id).future,
-    );
-    final marks = await ref.read(subjectMarksProvider(subject.id).future);
+  // ================= LOGIC: single-note dedicated flow =================
 
-    final answer = await ref.read(answerFromMarksProvider)(
-      question: intent.question ?? _promptController.text.trim(),
-      subjectName: subject.name,
-      components: components,
-      marks: marks,
-    );
-
-    if (!mounted) return;
-    setState(() {
-      _answerText = answer;
-      _step = _Step.answer;
-    });
-  }
-
-  Future<void> _handleQueryEvents(
-    AssistantIntent intent,
-    Subject? matched,
-    List<Subject> subjects,
-  ) async {
-    final subject = matched ?? subjects.first;
-    final events = await ref.read(subjectEventsProvider(subject.id).future);
-
-    final answer = await ref.read(answerFromEventsProvider)(
-      question: intent.question ?? _promptController.text.trim(),
-      subjectName: subject.name,
-      events: events,
-    );
-
-    if (!mounted) return;
-    setState(() {
-      _answerText = answer;
-      _step = _Step.answer;
-    });
-  }
-
-  Future<void> _handleQueryAttendance(
-    AssistantIntent intent,
-    Subject? matched,
-    List<Subject> subjects,
-  ) async {
-    final subject = matched ?? subjects.first;
-    final records = await ref.read(
-      attendanceForSubjectProvider(subject.id).future,
-    );
-
-    final answer = await ref.read(answerFromAttendanceProvider)(
-      question: intent.question ?? _promptController.text.trim(),
-      subjectName: subject.name,
-      records: records,
-    );
-
-    if (!mounted) return;
-    setState(() {
-      _answerText = answer;
-      _step = _Step.answer;
-    });
-  }
-
-  Future<void> _handleQueryTimetable(
-    AssistantIntent intent,
-    Subject? matched,
-    List<Subject> subjects,
-  ) async {
-    final subject = matched ?? subjects.first;
-    final allSchedules = await ref.read(allTimetableProvider.future);
-    final subjectSchedules = allSchedules
-        .where((s) => s.subjectId == subject.id)
-        .toList();
-
-    final answer = await ref.read(answerFromTimetableProvider)(
-      question: intent.question ?? _promptController.text.trim(),
-      subjectName: subject.name,
-      schedules: subjectSchedules,
-    );
-
-    if (!mounted) return;
-    setState(() {
-      _answerText = answer;
-      _step = _Step.answer;
-    });
-  }
-
-  // ================= LOGIC: note create (dedicated flow) =================
-
-  Future<void> _handleConfirmNote() async {
+  Future<void> _handleConfirmSingleNote() async {
     final subject = _selectedSubject;
     final content = _contentController.text.trim();
     if (subject == null || content.isEmpty) return;
@@ -618,86 +619,126 @@ Future<void> _toggleListening() async {
 
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Added to ${subject.name}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added to ${subject.name}')));
     } catch (e) {
       if (!mounted) return;
       setState(() => _step = _Step.confirmNoteText);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to save note: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save note: $e')));
     }
   }
 
-  // ================= LOGIC: generic write dispatch =================
+  // ================= LOGIC: the orchestrator =================
+  //
+  // Walks _pendingIntents in order. Each step resolves its subject against
+  // _knownSubjects, which starts as a snapshot of existing subjects and
+  // grows every time a "create subject" step succeeds — so later steps in
+  // the same prompt can reference a subject that didn't exist when the
+  // batch was planned. Steps are independent of each other unless they
+  // happen to share a subject name, in which case order matters naturally:
+  // create it before you reference it.
 
   Future<void> _handleConfirmWrite() async {
-    final intent = _pendingIntent;
-    final subject = _pendingSubject;
-    if (intent == null || subject == null) return;
-
     setState(() => _step = _Step.thinking);
 
-    try {
-      switch (intent.module) {
-        case AssistantModule.attendance:
-          await _executeAttendance(intent, subject);
-          break;
-        case AssistantModule.events:
-          await _executeEvents(intent, subject);
-          break;
-        case AssistantModule.marks:
-          await _executeMarks(intent, subject);
-          break;
-        case AssistantModule.subjects:
-          await _executeSubjects(intent, subject);
-          break;
-        case AssistantModule.timetable:
-          await _executeTimetable(intent, subject);
-          break;
-        case AssistantModule.notes:
-          if (intent.operation == AssistantOperation.delete) {
-            await _executeNotesDelete(intent, subject);
-          } else {
-            throw UnsupportedError(
-              'Notes only supports create and delete right now.',
-            );
-          }
-          break;
-        case AssistantModule.unknown:
-          throw UnsupportedError('Unrecognized module.');
-      }
+    final results = <String>[];
 
-      if (!mounted) return;
+    for (final intent in _pendingIntents) {
+      try {
+        if (intent.module == AssistantModule.subjects &&
+            intent.operation == AssistantOperation.create) {
+          final createdName = intent.fields['name'] as String;
+          await ref.read(subjectsControllerProvider.notifier).createSubject(
+                name: createdName,
+                code: intent.fields['code'] as String?,
+                instructor: intent.fields['instructor'] as String?,
+                room: intent.fields['room'] as String?,
+              );
+
+          final newSubject = Subject(
+            id: 0,
+            name: createdName,
+            code: intent.fields['code'] as String?,
+            instructor: intent.fields['instructor'] as String?,
+            room: intent.fields['room'] as String?,
+            color: null,
+            isActive: true,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+
+          _knownSubjects = [..._knownSubjects, newSubject];
+          results.add('✓ created subject "$createdName"');
+          continue;
+        }
+
+        final subject = _matchSubject(intent.subjectName, _knownSubjects) ??
+            (_knownSubjects.isNotEmpty ? _knownSubjects.first : null);
+
+        if (subject == null) {
+          results.add('✗ ${intent.module.name} ${intent.operation.name}: no subject available');
+          continue;
+        }
+
+        switch (intent.module) {
+          case AssistantModule.attendance:
+            await _executeAttendance(intent, subject);
+            break;
+          case AssistantModule.events:
+            await _executeEvents(intent, subject);
+            break;
+          case AssistantModule.marks:
+            await _executeMarks(intent, subject);
+            break;
+          case AssistantModule.subjects:
+            await _executeSubjects(intent, subject); // update/delete only
+            break;
+          case AssistantModule.timetable:
+            await _executeTimetable(intent, subject);
+            break;
+          case AssistantModule.notes:
+            if (intent.operation == AssistantOperation.create) {
+              await _executeNotesCreate(intent, subject);
+            } else if (intent.operation == AssistantOperation.delete) {
+              await _executeNotesDelete(intent, subject);
+            } else {
+              throw UnsupportedError('Notes only supports create and delete.');
+            }
+            break;
+          case AssistantModule.general:
+          case AssistantModule.unknown:
+            throw UnsupportedError('Unrecognized action.');
+        }
+
+        results.add('✓ ${intent.module.name} ${intent.operation.name} for ${subject.name}');
+      } catch (e) {
+        results.add('✗ ${intent.module.name} ${intent.operation.name} failed: $e');
+      }
+    }
+
+    if (!mounted) return;
+
+    final anyFailed = results.any((r) => r.startsWith('✗'));
+    if (!anyFailed) {
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Done')));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _step = _Step.confirmWrite);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Consider it done.')));
+    } else {
+      setState(() {
+        _answerText = results.join('\n');
+        _step = _Step.answer;
+      });
     }
   }
 
   // ---------------- Attendance ----------------
 
-  Future<void> _executeAttendance(
-    AssistantIntent intent,
-    Subject subject,
-  ) async {
+  Future<void> _executeAttendance(AssistantIntent intent, Subject subject) async {
     final dateStr = intent.fields['date'] as String?;
     final date = dateStr == null ? DateTime.now() : DateTime.parse(dateStr);
 
     if (intent.operation == AssistantOperation.delete) {
-      final existing = await ref
-          .read(attendanceRepositoryProvider)
-          .getBySubjectAndDate(subject.id, date);
-      if (existing == null)
-        throw StateError('No attendance record found for that date.');
+      final existing =
+          await ref.read(attendanceRepositoryProvider).getBySubjectAndDate(subject.id, date);
+      if (existing == null) throw StateError('No attendance record found for that date.');
       await ref.read(deleteAttendanceProvider)(existing.id);
       return;
     }
@@ -706,7 +747,7 @@ Future<void> _toggleListening() async {
       id: 0,
       subjectId: subject.id,
       date: date,
-      present: intent.fields['present'] == true,
+      present: _asBool(intent.fields['present']) ?? false,
       markedAt: DateTime.now(),
       note: intent.fields['note'] as String?,
     );
@@ -725,7 +766,7 @@ Future<void> _toggleListening() async {
         type: (intent.fields['type'] as String?) ?? 'task',
         priority: (intent.fields['priority'] as String?) ?? 'medium',
         dueDate: DateTime.parse(intent.fields['dueDate'] as String),
-        isCompleted: false,
+        isCompleted: _asBool(intent.fields['isCompleted']) ?? false,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -734,11 +775,7 @@ Future<void> _toggleListening() async {
     }
 
     final events = await ref.read(subjectEventsProvider(subject.id).future);
-    final match = _matchByText(
-      events,
-      intent.fields['titleMatch'] as String?,
-      (e) => e.title,
-    );
+    final match = _matchByText(events, intent.fields['titleMatch'] as String?, (e) => e.title);
     if (match == null) throw StateError('Could not find a matching event.');
 
     if (intent.operation == AssistantOperation.delete) {
@@ -752,7 +789,7 @@ Future<void> _toggleListening() async {
       dueDate: intent.fields['dueDate'] != null
           ? DateTime.parse(intent.fields['dueDate'] as String)
           : null,
-      isCompleted: intent.fields['isCompleted'] as bool?,
+      isCompleted: _asBool(intent.fields['isCompleted']),
       updatedAt: DateTime.now(),
     );
     await ref.read(updateEventProvider)(updated);
@@ -761,9 +798,7 @@ Future<void> _toggleListening() async {
   // ---------------- Marks ----------------
 
   Future<void> _executeMarks(AssistantIntent intent, Subject subject) async {
-    final components = await ref.read(
-      subjectMarkComponentsProvider(subject.id).future,
-    );
+    final components = await ref.read(subjectMarkComponentsProvider(subject.id).future);
 
     if (intent.operation == AssistantOperation.create) {
       final component = MarkComponent(
@@ -784,8 +819,7 @@ Future<void> _toggleListening() async {
       intent.fields['componentNameMatch'] as String?,
       (c) => c.name,
     );
-    if (match == null)
-      throw StateError('Could not find a matching assessment.');
+    if (match == null) throw StateError('Could not find a matching assessment.');
 
     if (intent.operation == AssistantOperation.delete) {
       await ref.read(deleteMarkComponentProvider)(match.id);
@@ -811,23 +845,11 @@ Future<void> _toggleListening() async {
     await ref.read(saveMarkProvider)(mark);
   }
 
-  // ---------------- Subjects ----------------
+  // ---------------- Subjects (update / delete only — create is handled inline in the orchestrator) ----------------
 
   Future<void> _executeSubjects(AssistantIntent intent, Subject subject) async {
     if (intent.operation == AssistantOperation.delete) {
       await ref.read(deleteSubjectProvider)(subject.id);
-      return;
-    }
-
-    if (intent.operation == AssistantOperation.create) {
-      await ref
-          .read(subjectsControllerProvider.notifier)
-          .createSubject(
-            name: intent.fields['name'] as String,
-            code: intent.fields['code'] as String?,
-            instructor: intent.fields['instructor'] as String?,
-            room: intent.fields['room'] as String?,
-          );
       return;
     }
 
@@ -843,10 +865,7 @@ Future<void> _toggleListening() async {
 
   // ---------------- Timetable ----------------
 
-  Future<void> _executeTimetable(
-    AssistantIntent intent,
-    Subject subject,
-  ) async {
+  Future<void> _executeTimetable(AssistantIntent intent, Subject subject) async {
     if (intent.operation == AssistantOperation.create) {
       final schedule = ClassSchedule(
         id: 0,
@@ -890,23 +909,31 @@ Future<void> _toggleListening() async {
     await ref.read(updateScheduleProvider)(updated);
   }
 
-  // ---------------- Notes (delete only) ----------------
+  // ---------------- Notes ----------------
 
-  Future<void> _executeNotesDelete(
-    AssistantIntent intent,
-    Subject subject,
-  ) async {
+  Future<void> _executeNotesCreate(AssistantIntent intent, Subject subject) async {
+    final content = (intent.fields['content'] as String?)?.trim();
+    if (content == null || content.isEmpty) {
+      throw ArgumentError('No note content was understood.');
+    }
+    await ref.read(notesControllerProvider(subject.id)).createTextNote(content);
+  }
+
+  Future<void> _executeNotesDelete(AssistantIntent intent, Subject subject) async {
     final notes = await ref.read(getNotesProvider)(subject.id).first;
-    final match = _matchByText(
-      notes,
-      intent.fields['contentMatch'] as String?,
-      (n) => n.content,
-    );
+    final match = _matchByText(notes, intent.fields['contentMatch'] as String?, (n) => n.content);
     if (match == null) throw StateError('Could not find a matching note.');
     await ref.read(notesControllerProvider(subject.id)).deleteNote(match.id);
   }
 
   // ================= Helpers =================
+
+  bool? _asBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is String) return value.toLowerCase() == 'true';
+    return null;
+  }
 
   Subject? _matchSubject(String? name, List<Subject> subjects) {
     if (name == null || name.trim().isEmpty) return null;
@@ -916,8 +943,7 @@ Future<void> _toggleListening() async {
       if (s.name.toLowerCase() == target) return s;
     }
     for (final s in subjects) {
-      if (s.name.toLowerCase().contains(target) ||
-          target.contains(s.name.toLowerCase())) {
+      if (s.name.toLowerCase().contains(target) || target.contains(s.name.toLowerCase())) {
         return s;
       }
     }
