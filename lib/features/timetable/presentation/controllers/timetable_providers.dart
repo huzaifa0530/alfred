@@ -8,54 +8,46 @@ import '../../data/repositories/timetable_repository_impl.dart';
 import '../../domain/entities/class_schedule.dart';
 import '../../domain/repositories/timetable_repository.dart';
 
-final classSchedulesDaoProvider =
-    Provider<ClassSchedulesDao>((ref) {
-  return ClassSchedulesDao(
-    ref.watch(appDatabaseProvider),
-  );
+import '../../domain/usecases/create_schedule.dart';
+import '../../domain/usecases/update_schedule.dart';
+import '../../domain/usecases/delete_schedule.dart';
+
+final classSchedulesDaoProvider = Provider<ClassSchedulesDao>((ref) {
+  return ClassSchedulesDao(ref.watch(appDatabaseProvider));
 });
 
-final timetableLocalDataSourceProvider =
-    Provider<TimetableLocalDataSource>((ref) {
-  return TimetableLocalDataSource(
-    ref.watch(classSchedulesDaoProvider),
-  );
+final timetableLocalDataSourceProvider = Provider<TimetableLocalDataSource>((
+  ref,
+) {
+  return TimetableLocalDataSource(ref.watch(classSchedulesDaoProvider));
 });
 
-final timetableRepositoryProvider =
-    Provider<TimetableRepository>((ref) {
-  return TimetableRepositoryImpl(
-    ref.watch(
-      timetableLocalDataSourceProvider,
-    ),
-  );
+final timetableRepositoryProvider = Provider<TimetableRepository>((ref) {
+  return TimetableRepositoryImpl(ref.watch(timetableLocalDataSourceProvider));
 });
 
-final allTimetableProvider =
-    StreamProvider<List<ClassSchedule>>((ref) {
-  return ref
-      .watch(timetableRepositoryProvider)
-      .watchAllSchedules();
+final allTimetableProvider = StreamProvider<List<ClassSchedule>>((ref) {
+  return ref.watch(timetableRepositoryProvider).watchAllSchedules();
 });
 
-final todayTimetableProvider =
-    StreamProvider<List<ClassSchedule>>((ref) {
+final todayTimetableProvider = StreamProvider<List<ClassSchedule>>((ref) {
   final weekday = DateTime.now().weekday;
 
-  return ref
-      .watch(timetableRepositoryProvider)
-      .watchSchedulesForDay(
-        weekday,
-      );
+  return ref.watch(timetableRepositoryProvider).watchSchedulesForDay(weekday);
 });
 
-final timetableForDayProvider =
-    StreamProvider.family<
-        List<ClassSchedule>,
-        int>((ref, weekday) {
-  return ref
-      .watch(timetableRepositoryProvider)
-      .watchSchedulesForDay(
-        weekday,
-      );
+final timetableForDayProvider = StreamProvider.family<List<ClassSchedule>, int>(
+  (ref, weekday) {
+    return ref.watch(timetableRepositoryProvider).watchSchedulesForDay(weekday);
+  },
+);
+
+final createScheduleProvider = Provider<CreateSchedule>((ref) {
+  return CreateSchedule(ref.watch(timetableRepositoryProvider));
+});
+final updateScheduleProvider = Provider<UpdateSchedule>((ref) {
+  return UpdateSchedule(ref.watch(timetableRepositoryProvider));
+});
+final deleteScheduleProvider = Provider<DeleteSchedule>((ref) {
+  return DeleteSchedule(ref.watch(timetableRepositoryProvider));
 });

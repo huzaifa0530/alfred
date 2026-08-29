@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:alfred/app/router/route_names.dart';
+import 'package:alfred/core/ai/ai_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -86,6 +87,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onTap: () => context.go(RouteNames.more),
                     ),
                   ],
+                ),
+              ),
+
+              const _SectionTitle('AI Provider'),
+
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _AiProviderSection(state: state),
                 ),
               ),
               const _SectionTitle('Backup & Sync'),
@@ -265,9 +275,8 @@ class _SectionTitle extends StatelessWidget {
       ),
     );
   }
-
-  
 }
+
 class _NavTile extends StatelessWidget {
   const _NavTile({
     required this.icon,
@@ -286,6 +295,90 @@ class _NavTile extends StatelessWidget {
       title: Text(label),
       trailing: const Icon(Icons.chevron_right_rounded),
       onTap: onTap,
+    );
+  }
+}
+class _AiProviderSection extends ConsumerStatefulWidget {
+  final SettingsState state;
+  const _AiProviderSection({required this.state});
+
+  @override
+  ConsumerState<_AiProviderSection> createState() => _AiProviderSectionState();
+}
+
+class _AiProviderSectionState extends ConsumerState<_AiProviderSection> {
+  late final TextEditingController _keyController;
+
+  @override
+  void initState() {
+    super.initState();
+    _keyController = TextEditingController(text: widget.state.aiApiKey ?? '');
+  }
+
+  @override
+  void didUpdateWidget(covariant _AiProviderSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state.aiProvider != widget.state.aiProvider) {
+      _keyController.text = widget.state.aiApiKey ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _keyController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = ref.read(settingsControllerProvider.notifier);
+    final provider = widget.state.aiProvider;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<AiProvider>(
+          initialValue: provider,
+          decoration: const InputDecoration(labelText: 'Provider', border: OutlineInputBorder()),
+          items: AiProvider.values
+              .map((p) => DropdownMenuItem(value: p, child: Text(p.displayName)))
+              .toList(),
+          onChanged: (value) {
+            if (value != null) controller.setAiProvider(value);
+          },
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          initialValue: widget.state.aiModel,
+          decoration: const InputDecoration(labelText: 'Model', border: OutlineInputBorder()),
+          items: provider.availableModels
+              .map((m) => DropdownMenuItem(value: m.id, child: Text(m.label)))
+              .toList(),
+          onChanged: (value) {
+            if (value != null) controller.setAiModel(value);
+          },
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _keyController,
+          obscureText: true,
+          decoration: InputDecoration(
+            labelText: '${provider.displayName} API Key',
+            border: const OutlineInputBorder(),
+            helperText: 'Get a free key at ${provider.apiKeyHelpUrl}',
+            helperMaxLines: 2,
+          ),
+          onSubmitted: (value) => controller.setAiApiKey(value.trim()),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => controller.setAiApiKey(_keyController.text.trim()),
+            child: const Text('Save key'),
+          ),
+        ),
+      ],
     );
   }
 }

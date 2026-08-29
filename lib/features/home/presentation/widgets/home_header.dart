@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 /// remark that reacts to whether there's something on the calendar or the
 /// workspace is still empty — a little bit of "Alfred" personality rather
 /// than a flat "Good morning" label.
+///
 class HomeHeader extends StatelessWidget {
   final int subjectCount;
   final bool hasEvent;
@@ -20,11 +21,13 @@ class HomeHeader extends StatelessWidget {
   }
 
   String get _remark {
-    if (hasEvent) return "There's something on your calendar worth a glance.";
-    if (subjectCount == 0) {
-      return "Your workspace is a blank canvas — let's fill it in.";
+    if (hasEvent) {
+      return "Something awaits on the calendar, Master Wayne — best not keep it waiting.";
     }
-    return "Everything's in order. Shall we get started?";
+    if (subjectCount == 0) {
+      return "The workspace stands quite empty, sir. Shall we give it purpose?";
+    }
+    return "Everything's in order, Master Wayne. Where shall we begin?";
   }
 
   String _weekday(int day) {

@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:alfred/core/ai/ai_provider.dart';
+import 'package:alfred/core/ai/ai_settings_datasource.dart';
 import 'package:alfred/features/backup/backup_service.dart';
 import 'package:alfred/features/settings/presentation/controllers/setting_provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -14,12 +16,18 @@ class SettingsState {
   final DateTime? lastBackupAt;
   final bool isBackingUp;
   final bool isRestoring;
+  final AiProvider aiProvider;
+  final String aiModel;
+  final String? aiApiKey; // null = not set
 
   const SettingsState({
     required this.autoBackupEnabled,
     required this.lastBackupAt,
     this.isBackingUp = false,
     this.isRestoring = false,
+    required this.aiProvider,
+    required this.aiModel,
+    this.aiApiKey,
   });
 
   SettingsState copyWith({
@@ -27,12 +35,18 @@ class SettingsState {
     DateTime? lastBackupAt,
     bool? isBackingUp,
     bool? isRestoring,
+    AiProvider? aiProvider,
+    String? aiModel,
+    String? aiApiKey,
   }) {
     return SettingsState(
       autoBackupEnabled: autoBackupEnabled ?? this.autoBackupEnabled,
       lastBackupAt: lastBackupAt ?? this.lastBackupAt,
       isBackingUp: isBackingUp ?? this.isBackingUp,
       isRestoring: isRestoring ?? this.isRestoring,
+      aiProvider: aiProvider ?? this.aiProvider,
+      aiModel: aiModel ?? this.aiModel,
+      aiApiKey: aiApiKey ?? this.aiApiKey,
     );
   }
 }
@@ -40,15 +54,21 @@ class SettingsState {
 class SettingsController extends AsyncNotifier<SettingsState> {
   late final BackupService _backupService;
   late final SettingsLocalDataSource _localDataSource;
-
+  late final AiSettingsDataSource _aiSettings;
   @override
   Future<SettingsState> build() async {
     _backupService = ref.watch(backupServiceProvider);
     _localDataSource = ref.watch(settingsLocalDataSourceProvider);
+    _aiSettings = AiSettingsDataSource();
+
+    final provider = await _aiSettings.getProvider();
 
     return SettingsState(
       autoBackupEnabled: await _localDataSource.getAutoBackupEnabled(),
       lastBackupAt: await _localDataSource.getLastBackupAt(),
+      aiProvider: provider,
+      aiModel: await _aiSettings.getModel() ?? provider.defaultModel,
+      aiApiKey: await _aiSettings.getApiKey(provider),
     );
   }
 
@@ -61,6 +81,34 @@ class SettingsController extends AsyncNotifier<SettingsState> {
     if (value) {
       await backupNow(silent: true);
     }
+  }
+
+  Future<void> setAiProvider(AiProvider provider) async {
+    await _aiSettings.setProvider(provider);
+    final existingKey = await _aiSettings.getApiKey(provider);
+    final model = provider.defaultModel;
+    await _aiSettings.setModel(model);
+
+    final current = state.value;
+    state = AsyncData(
+      current!.copyWith(
+        aiProvider: provider,
+        aiModel: model,
+        aiApiKey: existingKey,
+      ),
+    );
+  }
+
+  Future<void> setAiModel(String model) async {
+    await _aiSettings.setModel(model);
+    final current = state.value;
+    state = AsyncData(current!.copyWith(aiModel: model));
+  }
+
+  Future<void> setAiApiKey(String apiKey) async {
+    final current = state.value!;
+    await _aiSettings.setApiKey(current.aiProvider, apiKey);
+    state = AsyncData(current.copyWith(aiApiKey: apiKey));
   }
 
   /// Call this from app startup and from the Settings screen — matches
@@ -136,7 +184,7 @@ class SettingsController extends AsyncNotifier<SettingsState> {
   }
 }
 
-  final settingsControllerProvider =
-      AsyncNotifierProvider<SettingsController, SettingsState>(
-        SettingsController.new,
-      );
+final settingsControllerProvider =
+    AsyncNotifierProvider<SettingsController, SettingsState>(
+      SettingsController.new,
+    );

@@ -6,5 +6,5 @@ class AiConfig {
 
   /// Free-tier model. Swap to 'gemini-2.0-flash' if this one is
   /// unavailable in your region/quota.
-  static const String modelName = 'gemini-2.5-flash';
+  static const String modelName = 'gemini-3.6-flash';
 }

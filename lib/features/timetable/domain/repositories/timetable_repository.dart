@@ -1,5 +1,6 @@
 import '../entities/class_schedule.dart';
 
+
 abstract interface class TimetableRepository {
   Stream<List<ClassSchedule>>
       watchAllSchedules();

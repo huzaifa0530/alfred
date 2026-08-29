@@ -1,29 +1,27 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-class GeminiClient {
+class GroqClient {
+  static const _endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+
   final String apiKey;
   final String model;
 
-  GeminiClient({required this.apiKey, required this.model});
+  GroqClient({required this.apiKey, required this.model});
 
   Future<String> generateText(String prompt) async {
-    final uri = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey',
-    );
-
     try {
       final response = await http
           .post(
-            uri,
-            headers: {'Content-Type': 'application/json'},
+            Uri.parse(_endpoint),
+            headers: {
+              'Authorization': 'Bearer $apiKey',
+              'Content-Type': 'application/json',
+            },
             body: jsonEncode({
-              'contents': [
-                {
-                  'parts': [
-                    {'text': prompt},
-                  ],
-                },
+              'model': model,
+              'messages': [
+                {'role': 'user', 'content': prompt},
               ],
             }),
           )
@@ -36,14 +34,14 @@ class GeminiClient {
         throw StateError("Alfred's free daily AI limit is used up for now — try again in a bit.");
       }
       if (response.statusCode != 200) {
-        throw StateError('Alfred hit a Gemini error (${response.statusCode}): ${response.body}');
+        throw StateError('Alfred hit a Groq error (${response.statusCode}): ${response.body}');
       }
 
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-      final text = decoded['candidates']?[0]?['content']?['parts']?[0]?['text'] as String?;
+      final text = decoded['choices']?[0]?['message']?['content'] as String?;
 
       if (text == null || text.trim().isEmpty) {
-        throw StateError('Gemini returned an empty response.');
+        throw StateError('Groq returned an empty response.');
       }
       return text.trim();
     } on http.ClientException catch (e) {

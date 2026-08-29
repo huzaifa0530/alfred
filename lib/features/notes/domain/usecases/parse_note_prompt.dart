@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../../../core/ai/gemini_client.dart';
+import 'package:alfred/core/ai/ai_client.dart';
 
 class ParsedNotePrompt {
   final String? subjectName;
@@ -15,7 +16,7 @@ class ParsedNotePrompt {
 }
 
 class ParseNotePrompt {
-  final GeminiClient _client;
+  final AiClient _client;
 
   ParseNotePrompt(this._client);
 

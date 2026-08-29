@@ -8,6 +8,12 @@ import '../../data/repositories/events_repository_impl.dart';
 import '../../domain/entities/event.dart';
 import '../../domain/repositories/events_repository.dart';
 
+
+import '../../domain/usecases/create_event.dart';
+import '../../domain/usecases/update_event.dart';
+import '../../domain/usecases/delete_event.dart';
+import '../../domain/usecases/mark_event_completed.dart';
+
 final eventsDaoProvider =
     Provider<EventsDao>((ref) {
   return EventsDao(
@@ -53,3 +59,17 @@ final subjectEventsProvider =
         .watchEventsForSubject(subjectId);
   },
 );
+
+
+final createEventProvider = Provider<CreateEvent>((ref) {
+  return CreateEvent(ref.watch(eventsRepositoryProvider));
+});
+final updateEventProvider = Provider<UpdateEvent>((ref) {
+  return UpdateEvent(ref.watch(eventsRepositoryProvider));
+});
+final deleteEventProvider = Provider<DeleteEvent>((ref) {
+  return DeleteEvent(ref.watch(eventsRepositoryProvider));
+});
+final markEventCompletedProvider = Provider<MarkEventCompleted>((ref) {
+  return MarkEventCompleted(ref.watch(eventsRepositoryProvider));
+});

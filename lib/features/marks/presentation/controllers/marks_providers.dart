@@ -17,6 +17,7 @@ import '../../domain/usecases/save_mark.dart';
 import '../../domain/usecases/get_marks.dart';
 import '../../domain/usecases/get_subject_marks.dart';
 
+import '../../domain/usecases/create_mark.dart';
 
 // ============================================================
 // DAO
@@ -129,3 +130,8 @@ final subjectMarkComponentsProvider =
         .watchComponentsForSubject(subjectId);
   },
 );
+
+
+final createMarkProvider = Provider<CreateMark>((ref) {
+  return CreateMark(ref.watch(marksRepositoryProvider));
+});
