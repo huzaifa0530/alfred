@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
+import '../../../../core/utils/timeout.dart';
+
 import '../../../assistant/domain/entities/assistant_intent.dart';
 import '../../../assistant/presentation/controllers/assistant_provider.dart';
 
@@ -52,7 +54,8 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
 
   bool get _isCoolingDown {
     if (_lastRequestAt == null) return false;
-    return DateTime.now().difference(_lastRequestAt!) < const Duration(seconds: 13);
+    return DateTime.now().difference(_lastRequestAt!) <
+        const Duration(seconds: 13);
   }
 
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -90,7 +93,9 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
     if (!_speechInitialized) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Speech recognition isn't available on this device.")),
+        const SnackBar(
+          content: Text("Speech recognition isn't available on this device."),
+        ),
       );
       return;
     }
@@ -101,8 +106,9 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
       onResult: (result) {
         setState(() {
           _promptController.text = result.recognizedWords;
-          _promptController.selection =
-              TextSelection.collapsed(offset: _promptController.text.length);
+          _promptController.selection = TextSelection.collapsed(
+            offset: _promptController.text.length,
+          );
         });
       },
     );
@@ -155,7 +161,9 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
       children: [
         Text(
           'Ask Alfred',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
         Text(
@@ -177,7 +185,9 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
             suffixIcon: IconButton(
               icon: Icon(
                 _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-                color: _isListening ? Theme.of(context).colorScheme.error : null,
+                color: _isListening
+                    ? Theme.of(context).colorScheme.error
+                    : null,
               ),
               onPressed: _toggleListening,
             ),
@@ -221,13 +231,20 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
       children: [
         Text(
           'Save this note?',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<Subject>(
           initialValue: _selectedSubject,
-          decoration: const InputDecoration(labelText: 'Subject', border: OutlineInputBorder()),
-          items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s.name))).toList(),
+          decoration: const InputDecoration(
+            labelText: 'Subject',
+            border: OutlineInputBorder(),
+          ),
+          items: subjects
+              .map((s) => DropdownMenuItem(value: s, child: Text(s.name)))
+              .toList(),
           onChanged: (value) => setState(() => _selectedSubject = value),
         ),
         const SizedBox(height: 14),
@@ -236,7 +253,10 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
           minLines: 2,
           maxLines: 6,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(labelText: 'Note content', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+            labelText: 'Note content',
+            border: OutlineInputBorder(),
+          ),
         ),
         const SizedBox(height: 18),
         Row(
@@ -250,7 +270,9 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton(
-                onPressed: _selectedSubject == null ? null : _handleConfirmSingleNote,
+                onPressed: _selectedSubject == null
+                    ? null
+                    : _handleConfirmSingleNote,
                 child: const Text('Add note'),
               ),
             ),
@@ -262,108 +284,98 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
 
   // ================= STEP: orchestrated batch confirm =================
 
-Widget _buildConfirmWriteStep() {
-  return SizedBox(
-    height: MediaQuery.of(context).size.height * 0.65,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _pendingIntents.length > 1
-              ? 'Confirm these ${_pendingIntents.length} actions'
-              : 'Confirm this action',
-          style: Theme.of(context)
-              .textTheme
-              .titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-
-        const SizedBox(height: 6),
-
-        if (_pendingIntents.length > 1)
+  Widget _buildConfirmWriteStep() {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.65,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            "Alfred will carry these out in order — a subject created in an "
-            "earlier step is available to the steps after it.",
-            style: Theme.of(context).textTheme.bodySmall,
+            _pendingIntents.length > 1
+                ? 'Confirm these ${_pendingIntents.length} actions'
+                : 'Confirm this action',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
 
-        const SizedBox(height: 14),
+          const SizedBox(height: 6),
 
-        // Scrollable action list
-        Expanded(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              for (var i = 0; i < _pendingIntents.length; i++) ...[
-                _summaryRow('Step', '${i + 1}'),
-                _summaryRow(
-                  'Subject',
-                  _pendingIntents[i].subjectName ??
-                      '(resolved at run time)',
-                ),
-                _summaryRow(
-                  'Module',
-                  _pendingIntents[i].module.name,
-                ),
-                _summaryRow(
-                  'Action',
-                  _pendingIntents[i].operation.name,
-                ),
+          if (_pendingIntents.length > 1)
+            Text(
+              "Alfred will carry these out in order — a subject created in an "
+              "earlier step is available to the steps after it.",
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
 
-                ..._pendingIntents[i]
-                    .fields
-                    .entries
-                    .map(
-                      (e) => _summaryRow(
-                        e.key,
-                        '${e.value}',
-                      ),
-                    ),
+          const SizedBox(height: 14),
 
-                if (i != _pendingIntents.length - 1)
-                  const Divider(height: 24),
+          // Scrollable action list
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                for (var i = 0; i < _pendingIntents.length; i++) ...[
+                  _summaryRow('Step', '${i + 1}'),
+                  _summaryRow(
+                    'Subject',
+                    _pendingIntents[i].subjectName ?? '(resolved at run time)',
+                  ),
+                  _summaryRow('Module', _pendingIntents[i].module.name),
+                  _summaryRow('Action', _pendingIntents[i].operation.name),
+
+                  ..._pendingIntents[i].fields.entries.map(
+                    (e) => _summaryRow(e.key, '${e.value}'),
+                  ),
+
+                  if (i != _pendingIntents.length - 1)
+                    const Divider(height: 24),
+                ],
               ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // Always visible
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    setState(() => _step = _Step.prompt);
+                  },
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: _handleConfirmWrite,
+                  child: Text(
+                    _pendingIntents.length > 1 ? 'Confirm All' : 'Confirm',
+                  ),
+                ),
+              ),
             ],
           ),
-        ),
+        ],
+      ),
+    );
+  }
 
-        const SizedBox(height: 14),
-
-        // Always visible
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () {
-                  setState(() => _step = _Step.prompt);
-                },
-                child: const Text('Cancel'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                onPressed: _handleConfirmWrite,
-                child: Text(
-                  _pendingIntents.length > 1
-                      ? 'Confirm All'
-                      : 'Confirm',
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
   Widget _summaryRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          SizedBox(width: 100, child: Text(label, style: Theme.of(context).textTheme.bodySmall)),
-          Expanded(child: Text(value, style: Theme.of(context).textTheme.bodyMedium)),
+          SizedBox(
+            width: 100,
+            child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+          ),
+          Expanded(
+            child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
+          ),
         ],
       ),
     );
@@ -382,7 +394,9 @@ Widget _buildConfirmWriteStep() {
             const SizedBox(width: 8),
             Text(
               'Alfred says',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
           ],
         ),
@@ -415,7 +429,9 @@ Widget _buildConfirmWriteStep() {
 
     if (_isCoolingDown) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Give Alfred a moment before asking again.')),
+        const SnackBar(
+          content: Text('Give Alfred a moment before asking again.'),
+        ),
       );
       return;
     }
@@ -428,11 +444,16 @@ Widget _buildConfirmWriteStep() {
 
     try {
       final parser = ref.read(parseAssistantPromptProvider);
-      final intents = await parser(
-        prompt: prompt,
-        subjectNames: subjects.map((s) => s.name).toList(),
-      );
-
+      final intents =
+          await parser(
+            prompt: prompt,
+            subjectNames: subjects.map((s) => s.name).toList(),
+          ).timeout(
+            const Duration(seconds: 25),
+            onTimeout: () => throw StateError(
+              "Alfred is taking too long to think — try a shorter or simpler request.",
+            ),
+          );
       if (intents.isEmpty) {
         throw StateError("Alfred couldn't make sense of that.");
       }
@@ -444,8 +465,10 @@ Widget _buildConfirmWriteStep() {
           intents.first.operation == AssistantOperation.create) {
         final matched = _matchSubject(intents.first.subjectName, subjects);
         setState(() {
-          _selectedSubject = matched ?? (subjects.isNotEmpty ? subjects.first : null);
-          _contentController.text = (intents.first.fields['content'] as String?) ?? prompt;
+          _selectedSubject =
+              matched ?? (subjects.isNotEmpty ? subjects.first : null);
+          _contentController.text =
+              (intents.first.fields['content'] as String?) ?? prompt;
           _step = _Step.confirmNoteText;
         });
         return;
@@ -482,7 +505,9 @@ Widget _buildConfirmWriteStep() {
       if (pendingWrites.isNotEmpty) {
         setState(() {
           _pendingIntents = pendingWrites;
-          _knownSubjects = List.of(subjects); // orchestrator's live view of subjects
+          _knownSubjects = List.of(
+            subjects,
+          ); // orchestrator's live view of subjects
           _step = _Step.confirmWrite;
         });
         return;
@@ -496,7 +521,9 @@ Widget _buildConfirmWriteStep() {
     } catch (e) {
       if (!mounted) return;
       setState(() => _step = _Step.prompt);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Alfred hit an error: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Alfred hit an error: $e')));
     }
   }
 
@@ -510,21 +537,29 @@ Widget _buildConfirmWriteStep() {
     switch (intent.module) {
       case AssistantModule.notes:
         {
-          final subject = matched ?? (subjects.isNotEmpty ? subjects.first : null);
-          if (subject == null) return "There are no subjects to check yet, sir.";
+          final subject =
+              matched ?? (subjects.isNotEmpty ? subjects.first : null);
+          if (subject == null)
+            return "There are no subjects to check yet, sir.";
           final notes = await ref.read(getNotesProvider)(subject.id).first;
-          return ref.read(answerFromNotesProvider)(
-            question: intent.question ?? _promptController.text.trim(),
-            subjectName: subject.name,
-            notes: notes,
+          return withTimeout(
+            ref.read(answerFromNotesProvider)(
+              question: intent.question ?? _promptController.text.trim(),
+              subjectName: subject.name,
+              notes: notes,
+            ),
           );
         }
 
       case AssistantModule.marks:
         {
-          final subject = matched ?? (subjects.isNotEmpty ? subjects.first : null);
-          if (subject == null) return "There are no subjects to check yet, sir.";
-          final components = await ref.read(subjectMarkComponentsProvider(subject.id).future);
+          final subject =
+              matched ?? (subjects.isNotEmpty ? subjects.first : null);
+          if (subject == null)
+            return "There are no subjects to check yet, sir.";
+          final components = await ref.read(
+            subjectMarkComponentsProvider(subject.id).future,
+          );
           final marks = await ref.read(subjectMarksProvider(subject.id).future);
           return ref.read(answerFromMarksProvider)(
             question: intent.question ?? _promptController.text.trim(),
@@ -536,9 +571,13 @@ Widget _buildConfirmWriteStep() {
 
       case AssistantModule.events:
         {
-          final subject = matched ?? (subjects.isNotEmpty ? subjects.first : null);
-          if (subject == null) return "There are no subjects to check yet, sir.";
-          final events = await ref.read(subjectEventsProvider(subject.id).future);
+          final subject =
+              matched ?? (subjects.isNotEmpty ? subjects.first : null);
+          if (subject == null)
+            return "There are no subjects to check yet, sir.";
+          final events = await ref.read(
+            subjectEventsProvider(subject.id).future,
+          );
           return ref.read(answerFromEventsProvider)(
             question: intent.question ?? _promptController.text.trim(),
             subjectName: subject.name,
@@ -548,9 +587,13 @@ Widget _buildConfirmWriteStep() {
 
       case AssistantModule.attendance:
         {
-          final subject = matched ?? (subjects.isNotEmpty ? subjects.first : null);
-          if (subject == null) return "There are no subjects to check yet, sir.";
-          final records = await ref.read(attendanceForSubjectProvider(subject.id).future);
+          final subject =
+              matched ?? (subjects.isNotEmpty ? subjects.first : null);
+          if (subject == null)
+            return "There are no subjects to check yet, sir.";
+          final records = await ref.read(
+            attendanceForSubjectProvider(subject.id).future,
+          );
           return ref.read(answerFromAttendanceProvider)(
             question: intent.question ?? _promptController.text.trim(),
             subjectName: subject.name,
@@ -573,10 +616,17 @@ Widget _buildConfirmWriteStep() {
     Subject? matched,
     List<Subject> subjects,
   ) async {
-    final all = await ref.read(allTimetableProvider.future);
+    final all = await ref
+        .read(timetableSnapshotProvider.future)
+        .timeout(
+          const Duration(seconds: 10),
+          onTimeout: () =>
+              throw StateError('Could not read the timetable in time.'),
+        );
 
-    List<ClassSchedule> relevant =
-        matched != null ? all.where((s) => s.subjectId == matched.id).toList() : all;
+    List<ClassSchedule> relevant = matched != null
+        ? all.where((s) => s.subjectId == matched.id).toList()
+        : all;
 
     final dayField = intent.fields['day'] as String?;
     if (dayField != null) {
@@ -596,14 +646,15 @@ Widget _buildConfirmWriteStep() {
     }
 
     final subjectLabel = matched?.name ?? 'all subjects';
+    final namesById = {for (final s in subjects) s.id: s.name};
 
     return ref.read(answerFromTimetableProvider)(
       question: intent.question ?? _promptController.text.trim(),
       subjectName: subjectLabel,
       schedules: relevant,
+      subjectNamesById: namesById,
     );
   }
-
   // ================= LOGIC: single-note dedicated flow =================
 
   Future<void> _handleConfirmSingleNote() async {
@@ -619,11 +670,15 @@ Widget _buildConfirmWriteStep() {
 
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added to ${subject.name}')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Added to ${subject.name}')));
     } catch (e) {
       if (!mounted) return;
       setState(() => _step = _Step.confirmNoteText);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save note: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save note: $e')));
     }
   }
 
@@ -647,7 +702,9 @@ Widget _buildConfirmWriteStep() {
         if (intent.module == AssistantModule.subjects &&
             intent.operation == AssistantOperation.create) {
           final createdName = intent.fields['name'] as String;
-          await ref.read(subjectsControllerProvider.notifier).createSubject(
+          await ref
+              .read(subjectsControllerProvider.notifier)
+              .createSubject(
                 name: createdName,
                 code: intent.fields['code'] as String?,
                 instructor: intent.fields['instructor'] as String?,
@@ -671,11 +728,14 @@ Widget _buildConfirmWriteStep() {
           continue;
         }
 
-        final subject = _matchSubject(intent.subjectName, _knownSubjects) ??
+        final subject =
+            _matchSubject(intent.subjectName, _knownSubjects) ??
             (_knownSubjects.isNotEmpty ? _knownSubjects.first : null);
 
         if (subject == null) {
-          results.add('✗ ${intent.module.name} ${intent.operation.name}: no subject available');
+          results.add(
+            '✗ ${intent.module.name} ${intent.operation.name}: no subject available',
+          );
           continue;
         }
 
@@ -709,9 +769,13 @@ Widget _buildConfirmWriteStep() {
             throw UnsupportedError('Unrecognized action.');
         }
 
-        results.add('✓ ${intent.module.name} ${intent.operation.name} for ${subject.name}');
+        results.add(
+          '✓ ${intent.module.name} ${intent.operation.name} for ${subject.name}',
+        );
       } catch (e) {
-        results.add('✗ ${intent.module.name} ${intent.operation.name} failed: $e');
+        results.add(
+          '✗ ${intent.module.name} ${intent.operation.name} failed: $e',
+        );
       }
     }
 
@@ -720,7 +784,9 @@ Widget _buildConfirmWriteStep() {
     final anyFailed = results.any((r) => r.startsWith('✗'));
     if (!anyFailed) {
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Consider it done.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Consider it done.')));
     } else {
       setState(() {
         _answerText = results.join('\n');
@@ -731,14 +797,19 @@ Widget _buildConfirmWriteStep() {
 
   // ---------------- Attendance ----------------
 
-  Future<void> _executeAttendance(AssistantIntent intent, Subject subject) async {
+  Future<void> _executeAttendance(
+    AssistantIntent intent,
+    Subject subject,
+  ) async {
     final dateStr = intent.fields['date'] as String?;
     final date = dateStr == null ? DateTime.now() : DateTime.parse(dateStr);
 
     if (intent.operation == AssistantOperation.delete) {
-      final existing =
-          await ref.read(attendanceRepositoryProvider).getBySubjectAndDate(subject.id, date);
-      if (existing == null) throw StateError('No attendance record found for that date.');
+      final existing = await ref
+          .read(attendanceRepositoryProvider)
+          .getBySubjectAndDate(subject.id, date);
+      if (existing == null)
+        throw StateError('No attendance record found for that date.');
       await ref.read(deleteAttendanceProvider)(existing.id);
       return;
     }
@@ -753,35 +824,81 @@ Widget _buildConfirmWriteStep() {
     );
     await ref.read(createAttendanceProvider)(record); // upserts internally
   }
+  DateTime _parseDueDateTime(Map<String, dynamic> fields) {
+  final dateStr = fields['dueDate'] as String;
+  final timeStr = fields['dueTime'] as String?;
+
+  final date = DateTime.parse(dateStr);
+
+  if (timeStr != null && timeStr.trim().isNotEmpty) {
+    final parts = timeStr.split(':');
+    final hour = int.tryParse(parts[0]) ?? 23;
+    final minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 59) : 59;
+    return DateTime(date.year, date.month, date.day, hour, minute);
+  }
+
+  // No specific time mentioned — default to end of that day, not midnight.
+  return DateTime(date.year, date.month, date.day, 23, 59, 59);
+}
 
   // ---------------- Events ----------------
-
   Future<void> _executeEvents(AssistantIntent intent, Subject subject) async {
-    if (intent.operation == AssistantOperation.create) {
-      final event = Event(
-        id: 0,
-        subjectId: subject.id,
-        title: intent.fields['title'] as String,
-        description: intent.fields['description'] as String?,
-        type: (intent.fields['type'] as String?) ?? 'task',
-        priority: (intent.fields['priority'] as String?) ?? 'medium',
-        dueDate: DateTime.parse(intent.fields['dueDate'] as String),
-        isCompleted: _asBool(intent.fields['isCompleted']) ?? false,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      await ref.read(createEventProvider)(event);
-      return;
+if (intent.operation == AssistantOperation.create) {
+  final dueDate = _parseDueDateTime(intent.fields);
+
+  final event = Event(
+    id: 0,
+    subjectId: subject.id,
+    title: intent.fields['title'] as String,
+    description: intent.fields['description'] as String?,
+    type: (intent.fields['type'] as String?) ?? 'task',
+    priority: (intent.fields['priority'] as String?) ?? 'medium',
+    dueDate: dueDate,
+    isCompleted: _asBool(intent.fields['isCompleted']) ?? false,
+    createdAt: DateTime.now(),
+    updatedAt: DateTime.now(),
+  );
+
+  final newId = await ref.read(createEventProvider)(event);
+  return;
+}
+    // One-shot read via the repository, not the live StreamProvider —
+    // avoids the same cold-.future-read fragility that hung timetable.
+    final events = await ref
+        .read(eventsRepositoryProvider)
+        .watchEventsForSubject(subject.id)
+        .first
+        .timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => throw StateError('Could not read events in time.'),
+        );
+
+    print('EVENTS DEBUG: found ${events.length} events for ${subject.name}');
+    for (final e in events) {
+      print('  - "${e.title}" completed=${e.isCompleted}');
     }
 
-    final events = await ref.read(subjectEventsProvider(subject.id).future);
-    final match = _matchByText(events, intent.fields['titleMatch'] as String?, (e) => e.title);
-    if (match == null) throw StateError('Could not find a matching event.');
+    final titleMatch = intent.fields['titleMatch'] as String?;
+    print('EVENTS DEBUG: titleMatch = "$titleMatch"');
+
+    final match = _matchByText(events, titleMatch, (e) => e.title);
+
+    if (match == null) {
+      print('EVENTS DEBUG: NO MATCH FOUND');
+      throw StateError('Could not find a matching event.');
+    }
+
+    print(
+      'EVENTS DEBUG: matched "${match.title}", currently completed=${match.isCompleted}',
+    );
 
     if (intent.operation == AssistantOperation.delete) {
       await ref.read(deleteEventProvider)(match.id);
       return;
     }
+
+    final newCompleted = _asBool(intent.fields['isCompleted']);
+    print('EVENTS DEBUG: newCompleted value = $newCompleted');
 
     final updated = match.copyWith(
       title: intent.fields['title'] as String?,
@@ -789,16 +906,21 @@ Widget _buildConfirmWriteStep() {
       dueDate: intent.fields['dueDate'] != null
           ? DateTime.parse(intent.fields['dueDate'] as String)
           : null,
-      isCompleted: _asBool(intent.fields['isCompleted']),
+      isCompleted: newCompleted,
       updatedAt: DateTime.now(),
     );
-    await ref.read(updateEventProvider)(updated);
-  }
 
+    print('EVENTS DEBUG: after copyWith, isCompleted=${updated.isCompleted}');
+
+    await ref.read(updateEventProvider)(updated);
+    print('EVENTS DEBUG: update call completed');
+  }
   // ---------------- Marks ----------------
 
   Future<void> _executeMarks(AssistantIntent intent, Subject subject) async {
-    final components = await ref.read(subjectMarkComponentsProvider(subject.id).future);
+    final components = await ref.read(
+      subjectMarkComponentsProvider(subject.id).future,
+    );
 
     if (intent.operation == AssistantOperation.create) {
       final component = MarkComponent(
@@ -819,7 +941,8 @@ Widget _buildConfirmWriteStep() {
       intent.fields['componentNameMatch'] as String?,
       (c) => c.name,
     );
-    if (match == null) throw StateError('Could not find a matching assessment.');
+    if (match == null)
+      throw StateError('Could not find a matching assessment.');
 
     if (intent.operation == AssistantOperation.delete) {
       await ref.read(deleteMarkComponentProvider)(match.id);
@@ -865,7 +988,10 @@ Widget _buildConfirmWriteStep() {
 
   // ---------------- Timetable ----------------
 
-  Future<void> _executeTimetable(AssistantIntent intent, Subject subject) async {
+  Future<void> _executeTimetable(
+    AssistantIntent intent,
+    Subject subject,
+  ) async {
     if (intent.operation == AssistantOperation.create) {
       final schedule = ClassSchedule(
         id: 0,
@@ -911,7 +1037,10 @@ Widget _buildConfirmWriteStep() {
 
   // ---------------- Notes ----------------
 
-  Future<void> _executeNotesCreate(AssistantIntent intent, Subject subject) async {
+  Future<void> _executeNotesCreate(
+    AssistantIntent intent,
+    Subject subject,
+  ) async {
     final content = (intent.fields['content'] as String?)?.trim();
     if (content == null || content.isEmpty) {
       throw ArgumentError('No note content was understood.');
@@ -919,9 +1048,16 @@ Widget _buildConfirmWriteStep() {
     await ref.read(notesControllerProvider(subject.id)).createTextNote(content);
   }
 
-  Future<void> _executeNotesDelete(AssistantIntent intent, Subject subject) async {
+  Future<void> _executeNotesDelete(
+    AssistantIntent intent,
+    Subject subject,
+  ) async {
     final notes = await ref.read(getNotesProvider)(subject.id).first;
-    final match = _matchByText(notes, intent.fields['contentMatch'] as String?, (n) => n.content);
+    final match = _matchByText(
+      notes,
+      intent.fields['contentMatch'] as String?,
+      (n) => n.content,
+    );
     if (match == null) throw StateError('Could not find a matching note.');
     await ref.read(notesControllerProvider(subject.id)).deleteNote(match.id);
   }
@@ -943,7 +1079,8 @@ Widget _buildConfirmWriteStep() {
       if (s.name.toLowerCase() == target) return s;
     }
     for (final s in subjects) {
-      if (s.name.toLowerCase().contains(target) || target.contains(s.name.toLowerCase())) {
+      if (s.name.toLowerCase().contains(target) ||
+          target.contains(s.name.toLowerCase())) {
         return s;
       }
     }

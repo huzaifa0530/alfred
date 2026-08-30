@@ -6,9 +6,7 @@ import '../../domain/entities/event.dart';
 class EventMapper {
   const EventMapper._();
 
-  static Event fromDatabase(
-    database.Event data,
-  ) {
+  static Event fromDatabase(database.Event data) {
     return Event(
       id: data.id,
       subjectId: data.subjectId,
@@ -23,23 +21,34 @@ class EventMapper {
     );
   }
 
-  static database.EventsCompanion toCompanion(
-    Event event,
-  ) {
+  /// For INSERT — id omitted, autoincrement assigns it.
+  static database.EventsCompanion toInsertCompanion(Event event) {
     return database.EventsCompanion.insert(
       subjectId: Value(event.subjectId),
       title: event.title,
-      description:
-          Value(event.description),
+      description: Value(event.description),
       type: event.type,
       priority: Value(event.priority),
       dueDate: event.dueDate,
-      isCompleted:
-          Value(event.isCompleted),
-      createdAt:
-          Value(event.createdAt),
-      updatedAt:
-          Value(event.updatedAt),
+      isCompleted: Value(event.isCompleted),
+      createdAt: Value(event.createdAt),
+      updatedAt: Value(event.updatedAt),
+    );
+  }
+
+  /// For UPDATE — id required, identifies which row to replace.
+  static database.EventsCompanion toUpdateCompanion(Event event) {
+    return database.EventsCompanion(
+      id: Value(event.id),
+      subjectId: Value(event.subjectId),
+      title: Value(event.title),
+      description: Value(event.description),
+      type: Value(event.type),
+      priority: Value(event.priority),
+      dueDate: Value(event.dueDate),
+      isCompleted: Value(event.isCompleted),
+      createdAt: Value(event.createdAt),
+      updatedAt: Value(event.updatedAt),
     );
   }
 }

@@ -63,7 +63,10 @@ class MarksScreen extends ConsumerWidget {
                       onPressed: () {
                         _showAddComponentSheet(context, ref);
                       },
-                      icon: const Icon(Icons.add_rounded),
+                      icon: Icon(
+                        Icons.add_rounded,
+                        color: theme.colorScheme.onPrimary,
+                      ),
                     ),
                   ],
                 ),

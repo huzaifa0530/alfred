@@ -1,6 +1,9 @@
 import 'package:alfred/app/router/route_names.dart';
 import 'package:alfred/app/theme/app_text_styles.dart';
 import 'package:alfred/features/home/presentation/widgets/ask_alfred_sheet.dart';
+import 'package:alfred/features/subjects/domain/entities/subject.dart';
+import 'package:alfred/features/timetable/domain/entities/class_schedule.dart';
+import 'package:alfred/features/timetable/presentation/controllers/timetable_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,6 +31,9 @@ class HomeScreen extends ConsumerWidget {
     final nextEvent = ref.watch(nextEventProvider);
     final subjects = ref.watch(homeSubjectsProvider);
 
+    final todaySchedulesAsync = ref.watch(todayTimetableProvider);
+    final todaySchedules = todaySchedulesAsync.value ?? const <ClassSchedule>[];
+    final sortedSubjects = _sortSubjectsByTimetable(subjects, todaySchedules);
     return Scaffold(
       extendBody: true,
       body: Stack(
@@ -159,8 +165,8 @@ class HomeScreen extends ConsumerWidget {
 
                             QuickActionCard(
                               icon: Icons.add_task_rounded,
-                              title: 'Add',
-                              subtitle: 'Create event',
+                              title: 'Task',
+                              subtitle: 'Your Next Move',
                               accent: const Color(0xFF28C76F),
                               onTap: () {
                                 context.push('${RouteNames.events}/create');
@@ -200,25 +206,72 @@ class HomeScreen extends ConsumerWidget {
                         index: 7,
                         child: subjects.isEmpty
                             ? const _EmptySubjects()
-                            : Column(
-                                children: subjects
-                                    .take(4)
-                                    .map(
-                                      (subject) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 10,
-                                        ),
-                                        child: RecentSubjectCard(
-                                          subject: subject,
-                                          onTap: () {
-                                            context.push(
+                            : todaySchedulesAsync.when(
+                                loading: () => Column(
+                                  children: subjects
+                                      .take(4)
+                                      .map(
+                                        (subject) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 10,
+                                          ),
+                                          child: RecentSubjectCard(
+                                            subject: subject,
+                                            onTap: () => context.push(
                                               '${RouteNames.subjects}/${subject.id}',
-                                            );
-                                          },
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    )
-                                    .toList(),
+                                      )
+                                      .toList(),
+                                ),
+                                error: (_, __) => Column(
+                                  children: subjects
+                                      .take(4)
+                                      .map(
+                                        (subject) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 10,
+                                          ),
+                                          child: RecentSubjectCard(
+                                            subject: subject,
+                                            onTap: () => context.push(
+                                              '${RouteNames.subjects}/${subject.id}',
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                                data: (todaySchedules) {
+                                  final sortedSubjects =
+                                      _sortSubjectsByTimetable(
+                                        subjects,
+                                        todaySchedules,
+                                      );
+                                  return Column(
+                                    children: sortedSubjects
+                                        .take(4)
+                                        .map(
+                                          (subject) => Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 10,
+                                            ),
+                                            child: RecentSubjectCard(
+                                              subject: subject,
+                                              statusLabel: _statusLabelFor(
+                                                subject,
+                                                todaySchedules,
+                                              ),
+                                              onTap: () => context.push(
+                                                '${RouteNames.subjects}/${subject.id}',
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  );
+                                },
                               ),
                       ),
                     ]),
@@ -230,6 +283,121 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Orders subjects so a class happening right now comes first, then
+  /// classes coming up later today (soonest first), then everything else
+  /// in its original order.
+  List<Subject> _sortSubjectsByTimetable(
+    List<Subject> subjects,
+    List<ClassSchedule> todaySchedules,
+  ) {
+    DateTime parseTime(String hhmm) {
+      final parts = hhmm.split(':');
+      final hour = int.tryParse(parts[0]) ?? 0;
+      final minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day, hour, minute);
+    }
+
+    final now = DateTime.now();
+
+    final scheduleBySubject = <int, List<ClassSchedule>>{};
+    for (final schedule in todaySchedules) {
+      scheduleBySubject.putIfAbsent(schedule.subjectId, () => []).add(schedule);
+    }
+
+    final ongoing = <MapEntry<Subject, DateTime>>[];
+    final upcoming = <MapEntry<Subject, DateTime>>[];
+    final rest = <Subject>[];
+
+    for (final subject in subjects) {
+      final schedules = scheduleBySubject[subject.id];
+      if (schedules == null || schedules.isEmpty) {
+        rest.add(subject);
+        continue;
+      }
+
+      DateTime? ongoingEnd;
+      DateTime? nextStart;
+
+      for (final schedule in schedules) {
+        final start = parseTime(schedule.startTime);
+        final end = parseTime(schedule.endTime);
+
+        if (now.isAfter(start) && now.isBefore(end)) {
+          if (ongoingEnd == null || end.isBefore(ongoingEnd)) {
+            ongoingEnd = end;
+          }
+        } else if (start.isAfter(now)) {
+          if (nextStart == null || start.isBefore(nextStart)) {
+            nextStart = start;
+          }
+        }
+      }
+
+      if (ongoingEnd != null) {
+        ongoing.add(MapEntry(subject, ongoingEnd));
+      } else if (nextStart != null) {
+        upcoming.add(MapEntry(subject, nextStart));
+      } else {
+        rest.add(subject);
+      }
+    }
+
+    ongoing.sort((a, b) => a.value.compareTo(b.value));
+    upcoming.sort((a, b) => a.value.compareTo(b.value));
+
+    return [
+      ...ongoing.map((e) => e.key),
+      ...upcoming.map((e) => e.key),
+      ...rest..sort(
+        (a, b) => a.name.compareTo(b.name),
+      ), // stable, alphabetical fallback
+    ];
+  }
+
+  /// "Now" if the subject has a class in progress right now, a formatted
+  /// start time (e.g. "2:30 PM") if it has one coming up later today,
+  /// or null if nothing's scheduled today.
+  String? _statusLabelFor(Subject subject, List<ClassSchedule> todaySchedules) {
+    DateTime parseTime(String hhmm) {
+      final parts = hhmm.split(':');
+      final hour = int.tryParse(parts[0]) ?? 0;
+      final minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day, hour, minute);
+    }
+
+    String formatTime(DateTime dt) {
+      final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final minute = dt.minute.toString().padLeft(2, '0');
+      final period = dt.hour >= 12 ? 'PM' : 'AM';
+      return '$hour:$minute $period';
+    }
+
+    final now = DateTime.now();
+    final subjectSchedules = todaySchedules.where(
+      (s) => s.subjectId == subject.id,
+    );
+
+    DateTime? ongoingEnd;
+    DateTime? nextStart;
+
+    for (final schedule in subjectSchedules) {
+      final start = parseTime(schedule.startTime);
+      final end = parseTime(schedule.endTime);
+
+      if (now.isAfter(start) && now.isBefore(end)) {
+        if (ongoingEnd == null || end.isBefore(ongoingEnd)) ongoingEnd = end;
+      } else if (start.isAfter(now)) {
+        if (nextStart == null || start.isBefore(nextStart)) nextStart = start;
+      }
+    }
+
+    if (ongoingEnd != null) return 'Now';
+    if (nextStart != null) return formatTime(nextStart);
+    return null;
   }
 }
 

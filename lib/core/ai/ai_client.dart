@@ -10,16 +10,23 @@ class AiClient {
 
   AiClient(this._settings);
 
+  Future<T> _readWithTimeout<T>(Future<T> future, String label) {
+    return future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => throw StateError('Alfred could not read $label from device storage.'),
+    );
+  }
+
   Future<String> generateText(String prompt) async {
     print('AI: generateText started');
 
-    final provider = await _settings.getProvider();
+    final provider = await _readWithTimeout(_settings.getProvider(), 'the AI provider setting');
     print('AI: provider = $provider');
 
-    final apiKey = await _settings.getApiKey(provider);
+    final apiKey = await _readWithTimeout(_settings.getApiKey(provider), 'the API key');
     print('AI: API key exists = ${apiKey != null && apiKey.isNotEmpty}');
 
-    final model = await _settings.getModel() ?? provider.defaultModel;
+    final model = await _readWithTimeout(_settings.getModel(), 'the model setting') ?? provider.defaultModel;
     print('AI: model = $model');
 
     if (apiKey == null || apiKey.trim().isEmpty) {
@@ -32,20 +39,12 @@ class AiClient {
 
     switch (provider) {
       case AiProvider.gemini:
-        final result = await GeminiClient(
-          apiKey: apiKey,
-          model: model,
-        ).generateText(prompt);
-
+        final result = await GeminiClient(apiKey: apiKey, model: model).generateText(prompt);
         print('AI: Gemini response received');
         return result;
 
       case AiProvider.groq:
-        final result = await GroqClient(
-          apiKey: apiKey,
-          model: model,
-        ).generateText(prompt);
-
+        final result = await GroqClient(apiKey: apiKey, model: model).generateText(prompt);
         print('AI: Groq response received');
         return result;
     }

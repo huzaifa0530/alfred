@@ -6,8 +6,14 @@ import '../../../subjects/domain/entities/subject.dart';
 class RecentSubjectCard extends StatelessWidget {
   final Subject subject;
   final VoidCallback? onTap;
+  final String? statusLabel; // e.g. "Now" or "9:00 AM" — null = no chip
 
-  const RecentSubjectCard({super.key, required this.subject, this.onTap});
+  const RecentSubjectCard({
+    super.key,
+    required this.subject,
+    this.onTap,
+    this.statusLabel,
+  });
 
   static const _palette = [
     Color(0xFF6C63FF),
@@ -33,8 +39,7 @@ class RecentSubjectCard extends StatelessWidget {
       return parts.first.substring(0, 1).toUpperCase();
     }
 
-    return (parts.first.substring(0, 1) + parts[1].substring(0, 1))
-        .toUpperCase();
+    return (parts.first.substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
   }
 
   @override
@@ -42,6 +47,7 @@ class RecentSubjectCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final color = _colorFor(subject.name);
+    final isLive = statusLabel == 'Now';
 
     return Material(
       color: Colors.transparent,
@@ -55,7 +61,10 @@ class RecentSubjectCard extends StatelessWidget {
             color: colorScheme.surfaceContainer,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.28),
+              color: isLive
+                  ? color.withValues(alpha: 0.5)
+                  : colorScheme.outlineVariant.withValues(alpha: 0.28),
+              width: isLive ? 1.4 : 1,
             ),
           ),
           child: Row(
@@ -102,6 +111,26 @@ class RecentSubjectCard extends StatelessWidget {
                   ),
                 ),
               ),
+
+              if (statusLabel != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: isLive
+                        ? color.withValues(alpha: 0.16)
+                        : colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Text(
+                    statusLabel!,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: isLive ? color : colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
 
               Container(
                 width: 28,

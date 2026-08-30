@@ -58,21 +58,17 @@ class EventsLocalDataSource {
     return EventMapper.fromDatabase(data);
   }
 
-  Future<int> createEvent(
-    Event event,
-  ) {
-    return _dao.insertEvent(
-      EventMapper.toCompanion(event),
-    );
-  }
+  Future<int> createEvent(Event event) {
+  return _dao.insertEvent(
+    EventMapper.toInsertCompanion(event), // was toCompanion
+  );
+}
 
-  Future<void> updateEvent(
-    Event event,
-  ) async {
-    await _dao.updateEvent(
-      EventMapper.toCompanion(event),
-    );
-  }
+Future<void> updateEvent(Event event) async {
+  await _dao.updateEvent(
+    EventMapper.toUpdateCompanion(event), // was toCompanion
+  );
+}
 
   Future<void> deleteEvent(int id) async {
     await _dao.deleteEvent(id);

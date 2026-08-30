@@ -45,10 +45,10 @@ put the original question text in "question" for general.
 notes: create -> {"content": "..."} | delete -> {"contentMatch": "..."}
 attendance: create/update -> {"date": "YYYY-MM-DD", "present": true, "note": null}
   (present MUST be a real JSON boolean, never a string) | delete -> {"date": "YYYY-MM-DD"}
-events: create -> {"title": "...", "description": null, "type": "task", "priority": "medium", "dueDate": "YYYY-MM-DD"}
-  update -> {"titleMatch": "...", "isCompleted": true, "title": null, "dueDate": null, "priority": null}
-  (isCompleted MUST be a real JSON boolean when present, never a string)
-  delete -> {"titleMatch": "..."}
+events: create -> {"title": "...", "description": null, "type": "task", "priority": "medium", "dueDate": "YYYY-MM-DD", "dueTime": "HH:MM"|null}
+  (dueTime is 24-hour format, e.g. "23:20" for 11:20 PM. Only include dueTime
+  if the student actually mentioned a specific time — otherwise use null.)
+  update -> {"titleMatch": "...", "isCompleted": true, "title": null, "dueDate": null, "dueTime": null, "priority": null}
 marks: create -> {"componentName": "...", "type": "quiz", "maxMarks": 10}
   update -> {"componentNameMatch": "...", "obtainedMarks": 8.5} | delete -> {"componentNameMatch": "..."}
 subjects: create -> {"name": "...", "code": null, "instructor": null, "room": null}

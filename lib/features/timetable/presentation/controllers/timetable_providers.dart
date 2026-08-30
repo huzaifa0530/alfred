@@ -51,3 +51,7 @@ final updateScheduleProvider = Provider<UpdateSchedule>((ref) {
 final deleteScheduleProvider = Provider<DeleteSchedule>((ref) {
   return DeleteSchedule(ref.watch(timetableRepositoryProvider));
 });
+
+final timetableSnapshotProvider = FutureProvider<List<ClassSchedule>>((ref) {
+  return ref.watch(timetableRepositoryProvider).getAllSchedulesOnce();
+});

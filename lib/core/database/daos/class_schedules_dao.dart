@@ -87,4 +87,14 @@ class ClassSchedulesDao
           ))
         .go();
   }
+
+  Future<List<ClassSchedule>> getAllSchedulesOnce() {
+  return (select(classSchedules)
+        ..where((schedule) => schedule.isActive.equals(true))
+        ..orderBy([
+          (schedule) => OrderingTerm(expression: schedule.weekday, mode: OrderingMode.asc),
+          (schedule) => OrderingTerm(expression: schedule.startTime, mode: OrderingMode.asc),
+        ]))
+      .get(); // .get() = single fetch, not .watch() = live stream
+}
 }
