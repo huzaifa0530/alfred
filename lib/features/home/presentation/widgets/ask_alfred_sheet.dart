@@ -1,3 +1,4 @@
+import 'package:alfred/core/notifications/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -604,6 +605,8 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
       case AssistantModule.timetable:
         return _resolveTimetableQuery(intent, matched, subjects);
 
+      case AssistantModule.focusAlarm:
+        return "Focus check-ins aren't something I can report on — try asking me to start or stop one instead.";
       case AssistantModule.subjects:
       case AssistantModule.general:
       case AssistantModule.unknown:
@@ -764,6 +767,16 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
               throw UnsupportedError('Notes only supports create and delete.');
             }
             break;
+          case AssistantModule.focusAlarm:
+            final service = RecurringAlarmService();
+            if (intent.operation == AssistantOperation.delete) {
+              await service.stop();
+            } else {
+              final minutes =
+                  (intent.fields['intervalMinutes'] as num?)?.toInt() ?? 20;
+              await service.start(minutes);
+            }
+            break;
           case AssistantModule.general:
           case AssistantModule.unknown:
             throw UnsupportedError('Unrecognized action.');
@@ -824,44 +837,45 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
     );
     await ref.read(createAttendanceProvider)(record); // upserts internally
   }
+
   DateTime _parseDueDateTime(Map<String, dynamic> fields) {
-  final dateStr = fields['dueDate'] as String;
-  final timeStr = fields['dueTime'] as String?;
+    final dateStr = fields['dueDate'] as String;
+    final timeStr = fields['dueTime'] as String?;
 
-  final date = DateTime.parse(dateStr);
+    final date = DateTime.parse(dateStr);
 
-  if (timeStr != null && timeStr.trim().isNotEmpty) {
-    final parts = timeStr.split(':');
-    final hour = int.tryParse(parts[0]) ?? 23;
-    final minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 59) : 59;
-    return DateTime(date.year, date.month, date.day, hour, minute);
+    if (timeStr != null && timeStr.trim().isNotEmpty) {
+      final parts = timeStr.split(':');
+      final hour = int.tryParse(parts[0]) ?? 23;
+      final minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 59) : 59;
+      return DateTime(date.year, date.month, date.day, hour, minute);
+    }
+
+    // No specific time mentioned — default to end of that day, not midnight.
+    return DateTime(date.year, date.month, date.day, 23, 59, 59);
   }
-
-  // No specific time mentioned — default to end of that day, not midnight.
-  return DateTime(date.year, date.month, date.day, 23, 59, 59);
-}
 
   // ---------------- Events ----------------
   Future<void> _executeEvents(AssistantIntent intent, Subject subject) async {
-if (intent.operation == AssistantOperation.create) {
-  final dueDate = _parseDueDateTime(intent.fields);
+    if (intent.operation == AssistantOperation.create) {
+      final dueDate = _parseDueDateTime(intent.fields);
 
-  final event = Event(
-    id: 0,
-    subjectId: subject.id,
-    title: intent.fields['title'] as String,
-    description: intent.fields['description'] as String?,
-    type: (intent.fields['type'] as String?) ?? 'task',
-    priority: (intent.fields['priority'] as String?) ?? 'medium',
-    dueDate: dueDate,
-    isCompleted: _asBool(intent.fields['isCompleted']) ?? false,
-    createdAt: DateTime.now(),
-    updatedAt: DateTime.now(),
-  );
+      final event = Event(
+        id: 0,
+        subjectId: subject.id,
+        title: intent.fields['title'] as String,
+        description: intent.fields['description'] as String?,
+        type: (intent.fields['type'] as String?) ?? 'task',
+        priority: (intent.fields['priority'] as String?) ?? 'medium',
+        dueDate: dueDate,
+        isCompleted: _asBool(intent.fields['isCompleted']) ?? false,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
 
-  final newId = await ref.read(createEventProvider)(event);
-  return;
-}
+      final newId = await ref.read(createEventProvider)(event);
+      return;
+    }
     // One-shot read via the repository, not the live StreamProvider —
     // avoids the same cold-.future-read fragility that hung timetable.
     final events = await ref

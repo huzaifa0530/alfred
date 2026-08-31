@@ -98,7 +98,44 @@ class SettingsController extends AsyncNotifier<SettingsState> {
       ),
     );
   }
+Future<List<File>> listAvailableBackups() {
+  return _backupService.listBackups();
+}
 
+/// Restores directly from an already-known backup file — used when the
+/// user picks one from the in-app list, no system file picker involved.
+Future<bool> restoreFromFile(File file) async {
+  final current = state.value;
+  state = AsyncData(current!.copyWith(isRestoring: true));
+
+  try {
+    final db = ref.read(appDatabaseProvider);
+    await db.close();
+
+    await _backupService.restoreBackup(file);
+
+    return true;
+  } finally {
+    final updated = state.value;
+    state = AsyncData(updated!.copyWith(isRestoring: false));
+  }
+}
+
+/// Fallback for a backup that isn't in the Alfred Backups folder —
+/// e.g. one received via WhatsApp and saved somewhere else manually.
+Future<bool> restoreFromPickedFile() async {
+  final result = await FilePicker.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['alfredbackup', 'zip'], // accept both, in case of older backups
+  );
+
+  if (result.isEmpty) return false;
+
+  final path = result.first.path;
+  if (path == null) return false;
+
+  return restoreFromFile(File(path));
+}
   Future<void> setAiModel(String model) async {
     await _aiSettings.setModel(model);
     final current = state.value;
@@ -149,39 +186,7 @@ class SettingsController extends AsyncNotifier<SettingsState> {
   /// Lets the user pick a .zip and restore it. Returns true if a restore
   /// Lets the user pick a .zip and restore it. Returns true if a restore
   /// actually ran — caller should then tell the user to restart the app.
-  Future<bool> restoreFromPickedFile() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['zip'],
-    );
-
-    if (result.isEmpty) {
-      return false;
-    }
-
-    final path = result.first.path;
-
-    if (path == null) {
-      return false;
-    }
-
-    final current = state.value;
-    state = AsyncData(current!.copyWith(isRestoring: true));
-
-    try {
-      // Release the sqlite file handle before overwriting it — required
-      // on Windows, where the file stays locked while the app holds it.
-      final db = ref.read(appDatabaseProvider);
-      await db.close();
-
-      await _backupService.restoreBackup(File(path));
-
-      return true;
-    } finally {
-      final updated = state.value;
-      state = AsyncData(updated!.copyWith(isRestoring: false));
-    }
-  }
+  
 }
 
 final settingsControllerProvider =

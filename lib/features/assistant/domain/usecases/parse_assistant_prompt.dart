@@ -58,7 +58,8 @@ timetable: create -> {"weekday": 1-7, "startTime": "HH:MM", "endTime": "HH:MM", 
   delete -> {"weekdayMatch": 1-7, "startTimeMatch": "HH:MM"}
   query -> {"day": "today"|"tomorrow"|"YYYY-MM-DD"|null} — subjectName may be null,
   meaning "show the whole day across all subjects", which is a valid and common request.
-
+focusAlarm: create/update -> {"intervalMinutes": 20} (start/change interval)
+  delete -> {} (stop it)
 Any module + query -> fields optional, fill "question".
 
 Respond with ONLY raw JSON, no markdown:

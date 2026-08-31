@@ -200,31 +200,3 @@ class AppRouter {
     ],
   );
 }
-
-// ================================================================
-// TEMPORARY MORE SCREEN
-//
-// Replace this with your real MoreScreen when you create it.
-// ================================================================
-class _MoreScreen extends StatelessWidget {
-  const _MoreScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('More')),
-      body: ListView(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.settings_rounded),
-            title: const Text('Settings'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              context.push(RouteNames.settings);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}

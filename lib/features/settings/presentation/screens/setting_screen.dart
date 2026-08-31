@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:alfred/app/router/route_names.dart';
 import 'package:alfred/core/ai/ai_provider.dart';
+import 'package:alfred/core/notifications/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -39,7 +40,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               const SizedBox(height: 24),
-
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _RecurringAlarmSection(),
+                ),
+              ),
               const _SectionTitle('Navigate'),
 
               Card(
@@ -150,7 +156,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ListTile(
                       leading: const Icon(Icons.restore_outlined),
                       title: const Text('Restore backup'),
-                      subtitle: const Text('Choose a .zip backup to restore'),
+                      subtitle: const Text('Choose from your saved backups'),
                       trailing: state.isRestoring
                           ? const SizedBox(
                               width: 20,
@@ -160,7 +166,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           : null,
                       onTap: state.isRestoring
                           ? null
-                          : () => _handleRestore(context),
+                          : () => _showBackupPicker(context),
                     ),
                   ],
                 ),
@@ -202,6 +208,116 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ).showSnackBar(SnackBar(content: Text('Unable to share backup: $e')));
     }
   }
+
+  Future<void> _showBackupPicker(BuildContext context) async {
+  final backups = await ref.read(settingsControllerProvider.notifier).listAvailableBackups();
+
+  if (!mounted) return;
+
+  final chosen = await showModalBottomSheet<File>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (context) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Your backups', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 4),
+              Text('Found in Alfred Backups', style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 16),
+              if (backups.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Text(
+                    'No backups found here yet. Tap "Back up now" first, '
+                    'or choose a file from somewhere else below.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: backups.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final file = backups[index];
+                      final modified = file.statSync().modified;
+                      return ListTile(
+                        leading: const Icon(Icons.archive_outlined),
+                        title: Text(file.uri.pathSegments.last),
+                        subtitle: Text(DateFormat('MMM d, y • h:mm a').format(modified)),
+                        onTap: () => Navigator.pop(context, file),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pop(context, null),
+                icon: const Icon(Icons.folder_open_outlined),
+                label: const Text('Choose a different file'),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+
+  if (!mounted) return;
+
+  if (chosen != null) {
+    await _restoreFromFile(context, chosen);
+  } else {
+    // "Choose a different file" was tapped, or sheet dismissed with no pick
+    // — only fall through to the system picker if they explicitly asked.
+  }
+}
+
+Future<void> _restoreFromFile(BuildContext context, File file) async {
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Restore this backup?'),
+      content: Text(
+        'This replaces all current notes, attachments and marks with the '
+        'contents of "${file.uri.pathSegments.last}". This cannot be undone.',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Restore')),
+      ],
+    ),
+  );
+
+  if (confirm != true || !mounted) return;
+
+  try {
+    final restored = await ref.read(settingsControllerProvider.notifier).restoreFromFile(file);
+    if (!mounted || !restored) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Restore complete'),
+        content: const Text('Please close Alfred completely and reopen it for the restored data to load.'),
+        actions: [
+          FilledButton(onPressed: () => exit(0), child: const Text('Close Alfred')),
+        ],
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Restore failed: $e')));
+  }
+}
 
   Future<void> _handleRestore(BuildContext context) async {
     final confirm = await showDialog<bool>(
@@ -258,6 +374,69 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
+class _RecurringAlarmSection extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_RecurringAlarmSection> createState() =>
+      _RecurringAlarmSectionState();
+}
+
+//is inned to place this widget in separte eidget?
+class _RecurringAlarmSectionState
+    extends ConsumerState<_RecurringAlarmSection> {
+  final _service = RecurringAlarmService();
+  bool _enabled = false;
+  int _interval = 20;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final enabled = await _service.isEnabled();
+    final interval = await _service.getIntervalMinutes();
+    if (mounted)
+      setState(() {
+        _enabled = enabled;
+        _interval = interval;
+      });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Focus check-ins'),
+          subtitle: Text(_enabled ? 'Every $_interval minutes' : 'Off'),
+          value: _enabled,
+          onChanged: (value) async {
+            if (value) {
+              await _service.start(_interval);
+            } else {
+              await _service.stop();
+            }
+            setState(() => _enabled = value);
+          },
+        ),
+        if (_enabled)
+          Slider(
+            min: 5,
+            max: 60,
+            divisions: 11,
+            value: _interval.toDouble(),
+            label: '$_interval min',
+            onChanged: (value) => setState(() => _interval = value.round()),
+            onChangeEnd: (value) => _service.start(value.round()),
+          ),
+      ],
+    );
+  }
+}
+
 class _SectionTitle extends StatelessWidget {
   final String title;
   const _SectionTitle(this.title);
@@ -298,6 +477,7 @@ class _NavTile extends StatelessWidget {
     );
   }
 }
+
 class _AiProviderSection extends ConsumerStatefulWidget {
   final SettingsState state;
   const _AiProviderSection({required this.state});
@@ -339,9 +519,14 @@ class _AiProviderSectionState extends ConsumerState<_AiProviderSection> {
       children: [
         DropdownButtonFormField<AiProvider>(
           initialValue: provider,
-          decoration: const InputDecoration(labelText: 'Provider', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+            labelText: 'Provider',
+            border: OutlineInputBorder(),
+          ),
           items: AiProvider.values
-              .map((p) => DropdownMenuItem(value: p, child: Text(p.displayName)))
+              .map(
+                (p) => DropdownMenuItem(value: p, child: Text(p.displayName)),
+              )
               .toList(),
           onChanged: (value) {
             if (value != null) controller.setAiProvider(value);
@@ -350,7 +535,10 @@ class _AiProviderSectionState extends ConsumerState<_AiProviderSection> {
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           initialValue: widget.state.aiModel,
-          decoration: const InputDecoration(labelText: 'Model', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+            labelText: 'Model',
+            border: OutlineInputBorder(),
+          ),
           items: provider.availableModels
               .map((m) => DropdownMenuItem(value: m.id, child: Text(m.label)))
               .toList(),

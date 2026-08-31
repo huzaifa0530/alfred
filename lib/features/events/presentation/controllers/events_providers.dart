@@ -1,4 +1,5 @@
 import 'package:alfred/core/database/database_providers.dart';
+import 'package:alfred/core/notifications/recurring_alarm_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/daos/events_dao.dart';
@@ -13,6 +14,10 @@ import '../../domain/usecases/create_event.dart';
 import '../../domain/usecases/update_event.dart';
 import '../../domain/usecases/delete_event.dart';
 import '../../domain/usecases/mark_event_completed.dart';
+import '../../../../core/storage/event_order_storage.dart';
+import '../../../../core/storage/event_reminder_storage.dart';
+import '../../../../core/notifications/notification_service.dart';
+
 
 final eventsDaoProvider =
     Provider<EventsDao>((ref) {
@@ -72,4 +77,18 @@ final deleteEventProvider = Provider<DeleteEvent>((ref) {
 });
 final markEventCompletedProvider = Provider<MarkEventCompleted>((ref) {
   return MarkEventCompleted(ref.watch(eventsRepositoryProvider));
+});
+
+
+final eventOrderStorageProvider = Provider<EventOrderStorage>((ref) {
+  return EventOrderStorage();
+});
+
+final eventReminderStorageProvider = Provider<EventReminderStorage>((ref) {
+  return EventReminderStorage();
+});
+
+
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  return NotificationService();
 });

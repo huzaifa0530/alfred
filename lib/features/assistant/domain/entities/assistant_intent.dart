@@ -1,4 +1,4 @@
-enum AssistantModule { notes, marks, events, attendance, timetable, subjects, general, unknown }
+enum AssistantModule { notes, marks, events, attendance, timetable, subjects, general, focusAlarm, unknown }
 enum AssistantOperation { create, update, delete, query, unknown }
 
 class AssistantIntent {

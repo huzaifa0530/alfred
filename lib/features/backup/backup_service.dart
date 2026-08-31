@@ -1,5 +1,5 @@
-import 'dart:io';
 
+import 'dart:io';
 import 'package:alfred/core/storage/app_stoarge.dart';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as p;
@@ -16,32 +16,37 @@ class BackupService {
     return File(p.join(dir.path, _dbFileName));
   }
 
-  /// Visible in Explorer/Finder: Downloads/Alfred Backups, falling back
-  /// to the app's documents folder on platforms without a Downloads dir.
+  /// Returns a genuinely user-visible folder — the real public Downloads
+  /// folder on Android/Windows, falling back to app documents only where
+  /// no visible location exists (rare).
   Future<Directory> backupDestinationDir() async {
-    Directory base;
-    try {
-      base = await getDownloadsDirectory() ??
-          await getApplicationDocumentsDirectory();
-    } catch (_) {
-      base = await getApplicationDocumentsDirectory();
+    Directory backupDir;
+
+    if (Platform.isAndroid) {
+      // The real public Downloads path — visible in any file manager,
+      // unlike path_provider's app-scoped getDownloadsDirectory().
+      backupDir = Directory('/storage/emulated/0/Download/$_backupFolderName');
+    } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      final base = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+      backupDir = Directory(p.join(base.path, _backupFolderName));
+    } else {
+      final base = await getApplicationDocumentsDirectory();
+      backupDir = Directory(p.join(base.path, _backupFolderName));
     }
 
-    final backupDir = Directory(p.join(base.path, _backupFolderName));
     if (!await backupDir.exists()) {
       await backupDir.create(recursive: true);
     }
     return backupDir;
   }
 
-  String _timestampedFileName() {
-    final now = DateTime.now();
-    String two(int v) => v.toString().padLeft(2, '0');
-    final stamp =
-        '${now.year}-${two(now.month)}-${two(now.day)}_${two(now.hour)}-${two(now.minute)}-${two(now.second)}';
-    return 'Alfred_Backup_$stamp.zip';
-  }
-
+String _timestampedFileName() {
+  final now = DateTime.now();
+  String two(int v) => v.toString().padLeft(2, '0');
+  final stamp =
+      '${now.year}-${two(now.month)}-${two(now.day)}_${two(now.hour)}-${two(now.minute)}-${two(now.second)}';
+  return 'Alfred_Backup_$stamp.alfredbackup'; // was .zip
+}
   Future<void> _addDirectoryToArchive({
     required Archive archive,
     required Directory directory,
@@ -150,4 +155,22 @@ class BackupService {
       }
     }
   }
+Future<List<File>> listBackups() async {
+  final dir = await backupDestinationDir();
+  if (!await dir.exists()) return [];
+
+  final files = await dir
+      .list()
+      .where((e) => e is File && e.path.endsWith('.alfredbackup'))
+      .cast<File>()
+      .toList();
+
+  files.sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified)); // newest first
+  return files;
 }
+}
+
+
+
+
+
