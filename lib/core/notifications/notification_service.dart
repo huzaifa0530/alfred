@@ -1,75 +1,80 @@
-import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tz_data;
+import 'package:timezone/timezone.dart' as tz;
 
-const _keyEnabled = 'recurring_alarm_enabled';
-const _keyIntervalMinutes = 'recurring_alarm_interval_minutes';
+enum ReminderType { notification, alarm, both }
 
-class RecurringAlarmService {
-  static final RecurringAlarmService _instance = RecurringAlarmService._();
-  factory RecurringAlarmService() => _instance;
-  RecurringAlarmService._();
+class NotificationService {
+  static final NotificationService _instance = NotificationService._();
+  factory NotificationService() => _instance;
+  NotificationService._();
 
-  Timer? _timer;
   final _plugin = FlutterLocalNotificationsPlugin();
+  bool _initialized = false;
 
-  /// Call once at app startup — resumes the timer if it was left enabled
-  /// last session (so reopening the app picks back up automatically).
-  Future<void> restoreIfEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    final enabled = prefs.getBool(_keyEnabled) ?? false;
-    if (enabled) {
-      final minutes = prefs.getInt(_keyIntervalMinutes) ?? 20;
-      _startTimer(minutes);
-    }
+  Future<void> init() async {
+    if (_initialized) return;
+    tz_data.initializeTimeZones();
+
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings();
+
+    await _plugin.initialize(
+      settings: const InitializationSettings(android: androidSettings, iOS: iosSettings),
+    );
+
+    await _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+    await _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestExactAlarmsPermission();
+
+    _initialized = true;
   }
 
-  Future<void> start(int intervalMinutes) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyEnabled, true);
-    await prefs.setInt(_keyIntervalMinutes, intervalMinutes);
-    _startTimer(intervalMinutes);
-  }
+  Future<void> scheduleEventReminder({
+    required int eventId,
+    required String title,
+    required String body,
+    required DateTime dateTime,
+    required ReminderType type,
+  }) async {
+    await init();
 
-  Future<void> stop() async {
-    _timer?.cancel();
-    _timer = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyEnabled, false);
-  }
+    final isAlarmStyle = type == ReminderType.alarm || type == ReminderType.both;
 
-  void _startTimer(int minutes) {
-    _timer?.cancel();
-    _timer = Timer.periodic(Duration(minutes: minutes), (_) => _fire());
-  }
-
-  Future<void> _fire() async {
-    const androidDetails = AndroidNotificationDetails(
-      'alfred_focus_reminders',
-      'Focus Reminders',
-      channelDescription: 'Periodic study/focus check-ins',
-      importance: Importance.high,
+    final androidDetails = AndroidNotificationDetails(
+      'alfred_event_reminders',
+      'Event Reminders',
+      channelDescription: 'Reminders for notes, quizzes, and deadlines',
+      importance: Importance.max,
       priority: Priority.high,
+      fullScreenIntent: isAlarmStyle,
+      sound: isAlarmStyle
+          ? const RawResourceAndroidNotificationSound('alarm_sound') // add res/raw/alarm_sound.mp3, or remove this line to use the default sound
+          : null,
+      playSound: true,
+      category: isAlarmStyle ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.reminder,
     );
-    const details = NotificationDetails(
+
+    final details = NotificationDetails(
       android: androidDetails,
-      iOS: DarwinNotificationDetails(presentSound: true, presentAlert: true),
+      iOS: const DarwinNotificationDetails(presentSound: true, presentAlert: true),
     );
-    await _plugin.show(
-      id: 998,
-      title: 'Alfred checking in',
-      body: 'Still at it, Master Wayne? Time for a quick review.',
+
+    await _plugin.zonedSchedule(
+      id: eventId, // reuse the event's id as the notification id — makes cancel/reschedule trivial
+      title: title,
+      body: body,
+      scheduledDate: tz.TZDateTime.from(dateTime, tz.local),
       notificationDetails: details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
   }
 
-  Future<bool> isEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_keyEnabled) ?? false;
-  }
-
-  Future<int> getIntervalMinutes() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_keyIntervalMinutes) ?? 20;
+  Future<void> cancelEventReminder(int eventId) async {
+    await init();
+    await _plugin.cancel(id: eventId);
   }
 }

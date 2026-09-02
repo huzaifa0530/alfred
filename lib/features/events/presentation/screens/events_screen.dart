@@ -233,20 +233,24 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
     ];
   }
 
-  Future<void> _handleManualReorder(List<dynamic> reorderedGroup) async {
-  final newIds = reorderedGroup.map<int>((e) => e.id as int).toList();
+Future<void> _handleManualReorder(List<dynamic> reorderedGroup) async {
+  final newIds = reorderedGroup
+      .map<int>((e) => e.id as int)
+      .toList();
 
-  // Merge: new positions for this group's ids go first (in their new
-  // order), followed by any previously-ordered ids not in this group.
   final merged = [
     ...newIds,
     ..._manualOrder.where((id) => !newIds.contains(id)),
   ];
 
   await ref.read(eventOrderStorageProvider).saveOrder(merged);
-  setState(() => _manualOrder = merged);
-}
 
+  setState(() {
+    _manualOrder = merged;
+  });
+
+  ref.invalidate(manualEventOrderProvider);
+}
   List _filterEvents(List events) {
     return events.where((event) {
       if (!_showCompleted && event.isCompleted) {

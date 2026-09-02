@@ -1,3 +1,4 @@
+import 'package:alfred/app/theme/app_colors.dart';
 import 'package:alfred/app/theme/app_text_styles.dart';
 import 'package:flutter/material.dart';
 
@@ -78,23 +79,23 @@ class HomeHeader extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF6C63FF), Color(0xFF867AFF)],
+              colors: [AppColors.primaryContainer, AppColors.surfaceHighlight],
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
+                color: AppColors.primaryContainer.withValues(alpha: 0.35),
                 blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
           alignment: Alignment.center,
-          child: const Text(
-            'A',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              fontSize: 22,
+          child: ClipOval(
+            child: Image.asset(
+              'assets/icons/alfred_emblem_refined.png',
+              width: 52,
+              height: 52,
+              fit: BoxFit.cover,
             ),
           ),
         ),

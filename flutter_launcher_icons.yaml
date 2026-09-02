@@ -1,0 +1,21 @@
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: false
+  image_path: "assets/icons/bowtie_gold_emblem.jpg"
+  image_path_android: "assets/icons/bowtie_gold_emblem.jpg"
+  min_sdk_android: 21
+  # Alfred theme colors - Black suit + Gold bowtie
+  web:
+    generate: true
+    image_path: "assets/icons/bowtie_gold_emblem.jpg"
+    background_color: "#0A0A0A"
+    theme_color: "#D4AF37"
+  windows:
+    generate: true
+    image_path: "assets/icons/bowtie_gold_emblem.jpg"
+    icon_size: 256
+
+  # For Android 13+ adaptive icon with gold emblem on black
+  # If you want pure gold background, change to #D4AF37
+  adaptive_icon_background: "#0A0A0A"
+  adaptive_icon_foreground: "assets/icons/bowtie_gold_emblem.jpg"

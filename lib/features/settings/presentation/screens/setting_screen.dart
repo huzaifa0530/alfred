@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:alfred/app/router/route_names.dart';
 import 'package:alfred/core/ai/ai_provider.dart';
 import 'package:alfred/core/notifications/notification_service.dart';
+import 'package:alfred/core/notifications/recurring_alarm_service.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -97,7 +99,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
 
               const _SectionTitle('AI Provider'),
-
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -209,12 +210,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Future<void> _showBackupPicker(BuildContext context) async {
-  final backups = await ref.read(settingsControllerProvider.notifier).listAvailableBackups();
+Future<void> _showBackupPicker(BuildContext context) async {
+  final backups = await ref
+      .read(settingsControllerProvider.notifier)
+      .listAvailableBackups();
 
   if (!mounted) return;
 
-  final chosen = await showModalBottomSheet<File>(
+  final chosen = await showModalBottomSheet<dynamic>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
@@ -226,10 +229,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Your backups', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+              Text(
+                'Your backups',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
               const SizedBox(height: 4),
-              Text('Found in Alfred Backups', style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                'Found in Alfred Backups',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
               const SizedBox(height: 16),
+
               if (backups.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
@@ -248,18 +260,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     itemBuilder: (context, index) {
                       final file = backups[index];
                       final modified = file.statSync().modified;
+
                       return ListTile(
                         leading: const Icon(Icons.archive_outlined),
                         title: Text(file.uri.pathSegments.last),
-                        subtitle: Text(DateFormat('MMM d, y • h:mm a').format(modified)),
+                        subtitle: Text(
+                          DateFormat('MMM d, y • h:mm a').format(modified),
+                        ),
                         onTap: () => Navigator.pop(context, file),
                       );
                     },
                   ),
                 ),
+
               const SizedBox(height: 12),
+
               OutlinedButton.icon(
-                onPressed: () => Navigator.pop(context, null),
+                onPressed: () => Navigator.pop(context, 'browse'),
                 icon: const Icon(Icons.folder_open_outlined),
                 label: const Text('Choose a different file'),
               ),
@@ -272,52 +289,98 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   if (!mounted) return;
 
-  if (chosen != null) {
+  // User wants to select a backup from anywhere on the computer.
+  if (chosen == 'browse') {
+    await _pickAndRestoreFile(context);
+    return;
+  }
+
+  // User selected one of Alfred's existing backups.
+  if (chosen is File) {
     await _restoreFromFile(context, chosen);
-  } else {
-    // "Choose a different file" was tapped, or sheet dismissed with no pick
-    // — only fall through to the system picker if they explicitly asked.
   }
 }
-
-Future<void> _restoreFromFile(BuildContext context, File file) async {
-  final confirm = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Restore this backup?'),
-      content: Text(
-        'This replaces all current notes, attachments and marks with the '
-        'contents of "${file.uri.pathSegments.last}". This cannot be undone.',
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Restore')),
-      ],
-    ),
-  );
-
-  if (confirm != true || !mounted) return;
-
+Future<void> _pickAndRestoreFile(BuildContext context) async {
   try {
-    final restored = await ref.read(settingsControllerProvider.notifier).restoreFromFile(file);
-    if (!mounted || !restored) return;
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['alfredbackup', 'zip'],
+      allowMultiple: false,
+    );
 
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Restore complete'),
-        content: const Text('Please close Alfred completely and reopen it for the restored data to load.'),
-        actions: [
-          FilledButton(onPressed: () => exit(0), child: const Text('Close Alfred')),
-        ],
-      ),
+    if (result.isEmpty) return;
+
+    final path = result.first.path;
+
+    if (path == null) return;
+
+    await _restoreFromFile(
+      context,
+      File(path),
     );
   } catch (e) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Restore failed: $e')));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Unable to choose backup: $e'),
+      ),
+    );
   }
 }
+  Future<void> _restoreFromFile(BuildContext context, File file) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restore this backup?'),
+        content: Text(
+          'This replaces all current notes, attachments and marks with the '
+          'contents of "${file.uri.pathSegments.last}". This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Restore'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      final restored = await ref
+          .read(settingsControllerProvider.notifier)
+          .restoreFromFile(file);
+      if (!mounted || !restored) return;
+
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Restore complete'),
+          content: const Text(
+            'Please close Alfred completely and reopen it for the restored data to load.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => exit(0),
+              child: const Text('Close Alfred'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Restore failed: $e')));
+    }
+  }
 
   Future<void> _handleRestore(BuildContext context) async {
     final confirm = await showDialog<bool>(
@@ -498,8 +561,14 @@ class _AiProviderSectionState extends ConsumerState<_AiProviderSection> {
   @override
   void didUpdateWidget(covariant _AiProviderSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.state.aiProvider != widget.state.aiProvider) {
-      _keyController.text = widget.state.aiApiKey ?? '';
+
+    if (oldWidget.state.aiProvider != widget.state.aiProvider ||
+        oldWidget.state.aiApiKey != widget.state.aiApiKey) {
+      final newKey = widget.state.aiApiKey ?? '';
+
+      if (_keyController.text != newKey) {
+        _keyController.text = newKey;
+      }
     }
   }
 

@@ -65,6 +65,8 @@ class ClassSchedulesDao
         .getSingleOrNull();
   }
 
+  
+
   Future<int> insertSchedule(
     ClassSchedulesCompanion schedule,
   ) {

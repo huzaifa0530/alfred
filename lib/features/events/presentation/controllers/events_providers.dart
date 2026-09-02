@@ -92,3 +92,6 @@ final eventReminderStorageProvider = Provider<EventReminderStorage>((ref) {
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService();
 });
+final manualEventOrderProvider = FutureProvider<List<int>>((ref) {
+  return ref.read(eventOrderStorageProvider).getOrder();
+});

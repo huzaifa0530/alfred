@@ -37,7 +37,7 @@ class SettingsState {
     bool? isRestoring,
     AiProvider? aiProvider,
     String? aiModel,
-    String? aiApiKey,
+    Object? aiApiKey = _unset,
   }) {
     return SettingsState(
       autoBackupEnabled: autoBackupEnabled ?? this.autoBackupEnabled,
@@ -46,9 +46,13 @@ class SettingsState {
       isRestoring: isRestoring ?? this.isRestoring,
       aiProvider: aiProvider ?? this.aiProvider,
       aiModel: aiModel ?? this.aiModel,
-      aiApiKey: aiApiKey ?? this.aiApiKey,
+      aiApiKey: identical(aiApiKey, _unset)
+          ? this.aiApiKey
+          : aiApiKey as String?,
     );
   }
+
+  static const _unset = Object();
 }
 
 class SettingsController extends AsyncNotifier<SettingsState> {
@@ -98,44 +102,49 @@ class SettingsController extends AsyncNotifier<SettingsState> {
       ),
     );
   }
-Future<List<File>> listAvailableBackups() {
-  return _backupService.listBackups();
-}
 
-/// Restores directly from an already-known backup file — used when the
-/// user picks one from the in-app list, no system file picker involved.
-Future<bool> restoreFromFile(File file) async {
-  final current = state.value;
-  state = AsyncData(current!.copyWith(isRestoring: true));
-
-  try {
-    final db = ref.read(appDatabaseProvider);
-    await db.close();
-
-    await _backupService.restoreBackup(file);
-
-    return true;
-  } finally {
-    final updated = state.value;
-    state = AsyncData(updated!.copyWith(isRestoring: false));
+  Future<List<File>> listAvailableBackups() {
+    return _backupService.listBackups();
   }
-}
 
-/// Fallback for a backup that isn't in the Alfred Backups folder —
-/// e.g. one received via WhatsApp and saved somewhere else manually.
-Future<bool> restoreFromPickedFile() async {
-  final result = await FilePicker.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: ['alfredbackup', 'zip'], // accept both, in case of older backups
-  );
+  /// Restores directly from an already-known backup file — used when the
+  /// user picks one from the in-app list, no system file picker involved.
+  Future<bool> restoreFromFile(File file) async {
+    final current = state.value;
+    state = AsyncData(current!.copyWith(isRestoring: true));
 
-  if (result.isEmpty) return false;
+    try {
+      final db = ref.read(appDatabaseProvider);
+      await db.close();
 
-  final path = result.first.path;
-  if (path == null) return false;
+      await _backupService.restoreBackup(file);
 
-  return restoreFromFile(File(path));
-}
+      return true;
+    } finally {
+      final updated = state.value;
+      state = AsyncData(updated!.copyWith(isRestoring: false));
+    }
+  }
+
+  /// Fallback for a backup that isn't in the Alfred Backups folder —
+  /// e.g. one received via WhatsApp and saved somewhere else manually.
+  Future<bool> restoreFromPickedFile() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: [
+        'alfredbackup',
+        'zip',
+      ], // accept both, in case of older backups
+    );
+
+    if (result.isEmpty) return false;
+
+    final path = result.first.path;
+    if (path == null) return false;
+
+    return restoreFromFile(File(path));
+  }
+
   Future<void> setAiModel(String model) async {
     await _aiSettings.setModel(model);
     final current = state.value;
@@ -186,7 +195,6 @@ Future<bool> restoreFromPickedFile() async {
   /// Lets the user pick a .zip and restore it. Returns true if a restore
   /// Lets the user pick a .zip and restore it. Returns true if a restore
   /// actually ran — caller should then tell the user to restart the app.
-  
 }
 
 final settingsControllerProvider =

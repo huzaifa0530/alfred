@@ -24,13 +24,11 @@ abstract final class AppColors {
   // ─────────────────────────────────────────────
   // Primary
   // ─────────────────────────────────────────────
+  static const primary = Color(0xFFC4B395);
 
-  static const primary = Color(0xFF7C5CFF);
+  static const primarySoft = Color(0xFFD6C9B2);
 
-  static const primarySoft = Color(0xFF9B83FF);
-
-  static const primaryDark = Color(0xFF6042D8);
-
+  static const primaryDark = Color(0xFFA99572);
   static const primaryContainer = Color(0xFF211B3A);
 
   // ─────────────────────────────────────────────
@@ -74,4 +72,11 @@ abstract final class AppColors {
   static const white = Colors.white;
 
   static const black = Colors.black;
+
+
+
+  static const Color timetable = Color(0xFF00B8A9);
+  static const Color marks = Color(0xFFFF9F43);
+  static const Color attendance = Color(0xFFEE5A6F);
+  static const Color more = Color(0xFF7367F0);
 }

@@ -1,4 +1,7 @@
+import 'package:alfred/app/theme/app_text_styles.dart';
 import 'package:alfred/core/notifications/notification_service.dart';
+import 'package:alfred/core/notifications/recurring_alarm_service.dart';
+import 'package:alfred/core/utils/scheduletime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -156,51 +159,121 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
   // ================= STEP: prompt =================
 
   Widget _buildPromptStep(List<Subject> subjects) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Ask Alfred',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          style: AppTextStyles.headingLarge.copyWith(
+            fontWeight: FontWeight.w700,
+            color: colorScheme.onSurface,
+          ),
         ),
+
         const SizedBox(height: 6),
+
         Text(
-          'Try: "Create subject Design, add a note there saying hello, '
-          'and add a quiz event for it"',
-          style: Theme.of(context).textTheme.bodySmall,
+          'What can I do for you, sir?',
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
         ),
-        const SizedBox(height: 16),
+
+        const SizedBox(height: 14),
+
+        Text(
+          'For example',
+          style: AppTextStyles.labelSmall.copyWith(
+            color: colorScheme.primary,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+          ),
+        ),
+
+        const SizedBox(height: 6),
+
+        Text(
+          '"Create a Design subject, add a note saying hello, '
+          'and schedule a quiz for it."',
+          style: AppTextStyles.bodySmall.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+
+        const SizedBox(height: 18),
+
         TextField(
           controller: _promptController,
           autofocus: true,
           minLines: 2,
           maxLines: 4,
           textCapitalization: TextCapitalization.sentences,
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: colorScheme.onSurface,
+          ),
           decoration: InputDecoration(
-            hintText: _isListening ? 'Listening…' : 'Type or speak to Alfred…',
-            border: const OutlineInputBorder(),
+            hintText: _isListening
+                ? 'Listening for your command…'
+                : 'Tell Alfred what you need…',
+            hintStyle: AppTextStyles.bodyMedium.copyWith(
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: colorScheme.outlineVariant),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: colorScheme.error),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: colorScheme.error, width: 1.5),
+            ),
+            filled: true,
+            fillColor: colorScheme.surfaceContainer.withValues(alpha: 0.55),
             errorText: _errorText,
             suffixIcon: IconButton(
+              tooltip: _isListening ? 'Stop listening' : 'Speak to Alfred',
               icon: Icon(
                 _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-                color: _isListening
-                    ? Theme.of(context).colorScheme.error
-                    : null,
+                color: _isListening ? colorScheme.error : colorScheme.primary,
               ),
               onPressed: _toggleListening,
             ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
         ),
+
         const SizedBox(height: 16),
+
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
             onPressed: _isCoolingDown ? null : () => _handlePrompt(subjects),
             icon: const Icon(Icons.auto_awesome_rounded),
-            label: Text(_isCoolingDown ? 'Please wait…' : 'Send to Alfred'),
+            label: Text(
+              _isCoolingDown ? 'Please wait…' : 'Give Alfred the command',
+              style: AppTextStyles.labelLarge,
+            ),
           ),
         ),
       ],
@@ -1007,33 +1080,57 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
     Subject subject,
   ) async {
     if (intent.operation == AssistantOperation.create) {
+      final weekday = intent.fields['weekday'] as int;
+
+      final startTime = normalizeScheduleTime(
+        intent.fields['startTime'] as String,
+      );
+
+      final endTime = normalizeScheduleTime(
+        intent.fields['endTime'] as String,
+      );
+
       final schedule = ClassSchedule(
         id: 0,
         subjectId: subject.id,
-        weekday: intent.fields['weekday'] as int,
-        startTime: intent.fields['startTime'] as String,
-        endTime: intent.fields['endTime'] as String,
+        weekday: weekday,
+        startTime: startTime,
+        endTime: endTime,
         room: intent.fields['room'] as String?,
         teacher: intent.fields['teacher'] as String?,
         isActive: true,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
+
       await ref.read(createScheduleProvider)(schedule);
       return;
     }
 
     final all = await ref.read(allTimetableProvider.future);
+
+    final weekdayMatch = intent.fields['weekdayMatch'] as int?;
+
+    final startTimeMatch = intent.fields['startTimeMatch'] as String?;
+
+    final normalizedStartTimeMatch = startTimeMatch == null
+        ? null
+        : normalizeScheduleTime(startTimeMatch);
+
     ClassSchedule? match;
+
     for (final s in all) {
       if (s.subjectId == subject.id &&
-          s.weekday == intent.fields['weekdayMatch'] &&
-          s.startTime == intent.fields['startTimeMatch']) {
+          s.weekday == weekdayMatch &&
+          s.startTime == normalizedStartTimeMatch) {
         match = s;
         break;
       }
     }
-    if (match == null) throw StateError('Could not find a matching class.');
+
+    if (match == null) {
+      throw StateError('Could not find a matching class.');
+    }
 
     if (intent.operation == AssistantOperation.delete) {
       await ref.read(deleteScheduleProvider)(match.id);
@@ -1041,14 +1138,19 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
     }
 
     final updated = match.copyWith(
-      startTime: intent.fields['startTime'] as String?,
-      endTime: intent.fields['endTime'] as String?,
+      startTime: intent.fields['startTime'] == null
+          ? match.startTime
+          : normalizeScheduleTime(intent.fields['startTime'] as String),
+      endTime: intent.fields['endTime'] == null
+          ? match.endTime
+          : normalizeScheduleTime(intent.fields['endTime'] as String),
       room: intent.fields['room'] as String?,
+      teacher: intent.fields['teacher'] as String?,
       updatedAt: DateTime.now(),
     );
+
     await ref.read(updateScheduleProvider)(updated);
   }
-
   // ---------------- Notes ----------------
 
   Future<void> _executeNotesCreate(

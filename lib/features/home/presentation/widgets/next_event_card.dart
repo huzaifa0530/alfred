@@ -2,7 +2,6 @@ import 'package:alfred/app/theme/app_text_styles.dart';
 import 'package:flutter/material.dart';
 
 import '../../../events/domain/entities/event.dart';
-
 class NextEventCard extends StatelessWidget {
   final Event? event;
   final VoidCallback? onTap;
@@ -58,6 +57,35 @@ class NextEventCard extends StatelessWidget {
 
     return '${date.day}/${date.month}/${date.year} · $hour:$minute $period';
   }
+
+  List<T> applyManualOrder<T>(
+  List<T> events,
+  int Function(T) getId,
+  List<int> manualOrder,
+) {
+  final manualIndex = {
+    for (var i = 0; i < manualOrder.length; i++)
+      manualOrder[i]: i,
+  };
+
+  final ordered = List<T>.from(events);
+
+  ordered.sort((a, b) {
+    final aIndex = manualIndex[getId(a)];
+    final bIndex = manualIndex[getId(b)];
+
+    if (aIndex != null && bIndex != null) {
+      return aIndex.compareTo(bIndex);
+    }
+
+    if (aIndex != null) return -1;
+    if (bIndex != null) return 1;
+
+    return 0;
+  });
+
+  return ordered;
+}
 
   @override
   Widget build(BuildContext context) {

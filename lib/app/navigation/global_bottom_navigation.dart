@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:alfred/app/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -21,27 +22,27 @@ class GlobalBottomNavigation extends StatelessWidget {
     _NavItem(
       icon: Icons.home_rounded,
       label: 'Home',
-      accent: Color(0xFF6C63FF),
+      accent: AppColors.primary,
     ),
     _NavItem(
       icon: Icons.calendar_month_rounded,
       label: 'Timetable',
-      accent: Color(0xFF00B8A9),
+      accent: AppColors.timetable,
     ),
     _NavItem(
       icon: Icons.query_stats_rounded,
       label: 'Marks',
-      accent: Color(0xFFFF9F43),
+      accent: AppColors.marks,
     ),
     _NavItem(
       icon: Icons.fact_check_rounded,
       label: 'Attendance',
-      accent: Color(0xFFEE5A6F),
+      accent: AppColors.attendance,
     ),
     _NavItem(
       icon: Icons.auto_awesome_mosaic_rounded,
       label: 'More',
-      accent: Color(0xFF7367F0),
+      accent: AppColors.more,
     ),
   ];
 
@@ -62,8 +63,9 @@ class GlobalBottomNavigation extends StatelessWidget {
           child: Container(
             height: 74,
             decoration: BoxDecoration(
-              color: (isDark ? Colors.black : Colors.white)
-                  .withValues(alpha: 0.55),
+              color: (isDark ? Colors.black : Colors.white).withValues(
+                alpha: 0.55,
+              ),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
                 color: colorScheme.outlineVariant.withValues(alpha: 0.28),
@@ -115,7 +117,10 @@ class GlobalBottomNavigation extends StatelessWidget {
                       width: itemWidth,
                       child: Center(
                         child: TweenAnimationBuilder<Color?>(
-                          tween: ColorTween(begin: activeAccent, end: activeAccent),
+                          tween: ColorTween(
+                            begin: activeAccent,
+                            end: activeAccent,
+                          ),
                           duration: const Duration(milliseconds: 420),
                           builder: (context, color, _) => Container(
                             width: 52,
@@ -210,25 +215,25 @@ class _NavButton extends StatelessWidget {
                     : colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
               ),
             ),
-        //   const SizedBox(height: 5),
-          //   AnimatedOpacity(
-          //     duration: const Duration(milliseconds: 240),
-          //     opacity: selected ? 1 : 0,
-          //     child:
-              
-          //      Text(
-          //       item.label,
-          //       maxLines: 1,
-          //       overflow: TextOverflow.clip,
-          //       style: theme.textTheme.labelSmall?.copyWith(
-          //         fontWeight: FontWeight.w800,
-          //         fontSize: 10.5,
-          //         letterSpacing: 0.2,
-          //         color: item.accent,
-          //       ),
-          //     ),
-          //   ),
-         ],
+            //   const SizedBox(height: 5),
+            //   AnimatedOpacity(
+            //     duration: const Duration(milliseconds: 240),
+            //     opacity: selected ? 1 : 0,
+            //     child:
+
+            //      Text(
+            //       item.label,
+            //       maxLines: 1,
+            //       overflow: TextOverflow.clip,
+            //       style: theme.textTheme.labelSmall?.copyWith(
+            //         fontWeight: FontWeight.w800,
+            //         fontSize: 10.5,
+            //         letterSpacing: 0.2,
+            //         color: item.accent,
+            //       ),
+            //     ),
+            //   ),
+          ],
         ),
       ),
     );

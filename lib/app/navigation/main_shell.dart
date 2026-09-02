@@ -14,7 +14,7 @@ class MainShell extends StatelessWidget {
   void _onDestinationSelected(int index) {
     navigationShell.goBranch(
       index,
-      initialLocation: index == navigationShell.currentIndex,
+      initialLocation: true,
     );
   }
 

@@ -1,5 +1,7 @@
 import 'package:alfred/app/router/route_names.dart';
+import 'package:alfred/app/theme/app_colors.dart';
 import 'package:alfred/app/theme/app_text_styles.dart';
+import 'package:alfred/core/database/database_providers.dart';
 import 'package:alfred/features/home/presentation/widgets/ask_alfred_sheet.dart';
 import 'package:alfred/features/subjects/domain/entities/subject.dart';
 import 'package:alfred/features/timetable/domain/entities/class_schedule.dart';
@@ -14,6 +16,13 @@ import '../widgets/next_event_card.dart';
 import '../widgets/quick_action_card.dart';
 import '../widgets/recent_subject_card.dart';
 
+class _SubjectScheduleState {
+  final Subject subject;
+  final DateTime time;
+
+  const _SubjectScheduleState({required this.subject, required this.time});
+}
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
   //    @override
@@ -25,6 +34,8 @@ class HomeScreen extends ConsumerWidget {
   // }
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Debug: Print all schedules when home screen loads
+
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -78,6 +89,7 @@ class HomeScreen extends ConsumerWidget {
                         child: const _SectionTitle(
                           title: "TODAY'S FOCUS",
                           icon: Icons.bolt_rounded,
+                          //  icon: Icons.track_changes_rounded,
                         ),
                       ),
 
@@ -106,7 +118,6 @@ class HomeScreen extends ConsumerWidget {
                       ),
 
                       const SizedBox(height: 12),
-
                       _Reveal(
                         index: 5,
                         child: GridView.count(
@@ -116,68 +127,91 @@ class HomeScreen extends ConsumerWidget {
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
 
-                          // Taller cards on smaller screens.
                           childAspectRatio:
                               MediaQuery.sizeOf(context).width < 600
                               ? 1.35
                               : 1.75,
 
                           children: [
+                            // ─────────────────────────────────────────────
+                            // DOMAINS
+                            // Subjects / areas / topics Alfred manages
+                            // ─────────────────────────────────────────────
                             QuickActionCard(
-                              icon: Icons.auto_stories_rounded,
-                              title: 'Subjects',
-                              subtitle: '${subjects.length} subjects',
-                              accent: const Color(0xFF6C63FF),
+                              icon: Icons.account_tree_rounded,
+                              title: 'Domains',
+                              subtitle: 'Areas under Alfred\'s watch',
+                              accent: AppColors.primary,
                               onTap: () {
                                 context.push(RouteNames.subjects);
                               },
                             ),
 
+                            // ─────────────────────────────────────────────
+                            // PRESENCE
+                            // Attendance / presence tracking
+                            // ─────────────────────────────────────────────
                             QuickActionCard(
                               icon: Icons.fact_check_rounded,
-                              title: 'Attendance',
-                              subtitle: 'Track your attendance',
-                              accent: const Color(0xFFEE5A6F),
+                              title: 'Presence',
+                              subtitle: 'Where you need to be',
+                              accent: AppColors.primary,
                               onTap: () {
                                 context.push(RouteNames.attendance);
                               },
                             ),
 
+                            // ─────────────────────────────────────────────
+                            // SCHEDULE
+                            // Bruce Wayne's planned engagements
+                            // ─────────────────────────────────────────────
                             QuickActionCard(
-                              icon: Icons.calendar_month_rounded,
-                              title: 'Timetable',
-                              subtitle: 'Your class schedule',
-                              accent: const Color(0xFF00B8A9),
+                              icon: Icons.schedule_rounded,
+                              title: 'Schedule',
+                              subtitle: 'Your planned engagements',
+                              accent: AppColors.primary,
                               onTap: () {
                                 context.push(RouteNames.timetable);
                               },
                             ),
 
+                            // ─────────────────────────────────────────────
+                            // MISSIONS
+                            // Events / deadlines / important commitments
+                            // ─────────────────────────────────────────────
                             QuickActionCard(
-                              icon: Icons.event_available_rounded,
-                              title: 'Events',
-                              subtitle: 'Deadlines & tasks',
-                              accent: const Color(0xFF7367F0),
+                              icon: Icons.event_note_rounded,
+                              title: 'Missions',
+                              subtitle: 'Dates & commitments',
+                              accent: AppColors.primary,
                               onTap: () {
                                 context.push(RouteNames.events);
                               },
                             ),
 
+                            // ─────────────────────────────────────────────
+                            // NEXT MOVE
+                            // Immediate task / action
+                            // ─────────────────────────────────────────────
                             QuickActionCard(
-                              icon: Icons.add_task_rounded,
-                              title: 'Task',
-                              subtitle: 'Your Next Move',
-                              accent: const Color(0xFF28C76F),
+                              icon: Icons.arrow_forward_rounded,
+                              title: 'Next Move',
+                              subtitle: 'What deserves your attention',
+                              accent: AppColors.primary,
                               onTap: () {
                                 context.push('${RouteNames.events}/create');
                               },
                             ),
 
+                            // ─────────────────────────────────────────────
+                            // PROGRESS
+                            // Marks / achievements / measurable results
+                            // ─────────────────────────────────────────────
                             QuickActionCard(
-                              icon: Icons.query_stats_rounded,
-                              title: 'Marks',
-                              subtitle: 'Track your assessments',
-                              accent: const Color(0xFFFF9F43),
+                              icon: Icons.insights_rounded,
+                              title: 'Progress',
+                              subtitle: 'Measure what you\'ve accomplished',
+                              accent: AppColors.primary,
                               onTap: () {
                                 context.push(RouteNames.marks);
                               },
@@ -185,7 +219,6 @@ class HomeScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 30),
 
                       _Reveal(
@@ -288,73 +321,251 @@ class HomeScreen extends ConsumerWidget {
   /// Orders subjects so a class happening right now comes first, then
   /// classes coming up later today (soonest first), then everything else
   /// in its original order.
+  /// Orders subjects for the Home dashboard:
+  ///
+  /// 1. Class currently in progress
+  /// 2. Upcoming classes today — nearest first
+  /// 3. Subjects whose classes have already finished today
+  /// 4. Subjects with no class today — alphabetical
+  ///
   List<Subject> _sortSubjectsByTimetable(
     List<Subject> subjects,
     List<ClassSchedule> todaySchedules,
   ) {
-    DateTime parseTime(String hhmm) {
-      final parts = hhmm.split(':');
-      final hour = int.tryParse(parts[0]) ?? 0;
-      final minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+    DateTime parseTime(String value) {
+      final parts = value.split(':');
+
+      final hour = int.tryParse(parts.isNotEmpty ? parts[0] : '') ?? 0;
+      final minute = int.tryParse(parts.length > 1 ? parts[1] : '') ?? 0;
+
       final now = DateTime.now();
+
       return DateTime(now.year, now.month, now.day, hour, minute);
     }
 
     final now = DateTime.now();
 
-    final scheduleBySubject = <int, List<ClassSchedule>>{};
-    for (final schedule in todaySchedules) {
-      scheduleBySubject.putIfAbsent(schedule.subjectId, () => []).add(schedule);
+    // ============================================================
+    // DEBUG — RAW DATA
+    // ============================================================
+
+    debugPrint('');
+    debugPrint('══════════════════════════════════════════════════════');
+    debugPrint('📚 ALFRED SUBJECT ORDER DEBUG');
+    debugPrint('══════════════════════════════════════════════════════');
+    debugPrint('🕐 Current DateTime : $now');
+    debugPrint('📅 Current Weekday  : ${now.weekday}');
+    debugPrint('📚 Subjects count   : ${subjects.length}');
+    debugPrint('🗓️ Schedules count  : ${todaySchedules.length}');
+    debugPrint('');
+
+    debugPrint('──────────── SUBJECTS ────────────');
+
+    for (final subject in subjects) {
+      debugPrint('Subject → id=${subject.id} | name="${subject.name}"');
     }
 
-    final ongoing = <MapEntry<Subject, DateTime>>[];
-    final upcoming = <MapEntry<Subject, DateTime>>[];
-    final rest = <Subject>[];
+    debugPrint('');
+
+    debugPrint('──────────── TODAY SCHEDULES ────────────');
+
+    for (final schedule in todaySchedules) {
+      debugPrint(
+        'Schedule → '
+        'id=${schedule.id} | '
+        'subjectId=${schedule.subjectId} | '
+        'weekday=${schedule.weekday} | '
+        'start=${schedule.startTime} | '
+        'end=${schedule.endTime} | '
+        'room=${schedule.room} | '
+        'active=${schedule.isActive}',
+      );
+    }
+
+    debugPrint('');
+
+    // ============================================================
+    // GROUP SCHEDULES BY SUBJECT
+    // ============================================================
+
+    final scheduleBySubject = <int, List<ClassSchedule>>{};
+
+    for (final schedule in todaySchedules) {
+      scheduleBySubject
+          .putIfAbsent(schedule.subjectId, () => <ClassSchedule>[])
+          .add(schedule);
+    }
+
+    debugPrint('──────────── SUBJECT → SCHEDULE MAP ────────────');
+
+    for (final entry in scheduleBySubject.entries) {
+      debugPrint(
+        'subjectId=${entry.key} '
+        '→ ${entry.value.length} schedule(s)',
+      );
+
+      for (final schedule in entry.value) {
+        debugPrint('   ${schedule.startTime} → ${schedule.endTime}');
+      }
+    }
+
+    debugPrint('');
+
+    // ============================================================
+    // SORTING GROUPS
+    // ============================================================
+
+    final currentlyActive = <_SubjectScheduleState>[];
+    final upcoming = <_SubjectScheduleState>[];
+    final finished = <_SubjectScheduleState>[];
+    final noSchedule = <Subject>[];
 
     for (final subject in subjects) {
       final schedules = scheduleBySubject[subject.id];
+
+      debugPrint('────────────────────────────────────');
+      debugPrint(
+        '🔎 CHECKING SUBJECT: '
+        '${subject.name} '
+        '(id=${subject.id})',
+      );
+
       if (schedules == null || schedules.isEmpty) {
-        rest.add(subject);
+        debugPrint('   ❌ NO SCHEDULE FOUND');
+        noSchedule.add(subject);
         continue;
       }
 
-      DateTime? ongoingEnd;
+      ClassSchedule? activeSchedule;
+      ClassSchedule? nextSchedule;
+      ClassSchedule? lastFinishedSchedule;
+
+      DateTime? activeEnd;
       DateTime? nextStart;
+      DateTime? finishedEnd;
 
       for (final schedule in schedules) {
         final start = parseTime(schedule.startTime);
         final end = parseTime(schedule.endTime);
 
-        if (now.isAfter(start) && now.isBefore(end)) {
-          if (ongoingEnd == null || end.isBefore(ongoingEnd)) {
-            ongoingEnd = end;
+        debugPrint('   🗓️ ${schedule.startTime} → ${schedule.endTime}');
+
+        debugPrint('      start=$start | end=$end');
+
+        final isActive = !now.isBefore(start) && now.isBefore(end);
+
+        debugPrint('      isActive=$isActive');
+
+        if (isActive) {
+          debugPrint('      🟢 CURRENT CLASS');
+
+          if (activeEnd == null || end.isBefore(activeEnd)) {
+            activeSchedule = schedule;
+            activeEnd = end;
           }
-        } else if (start.isAfter(now)) {
+
+          continue;
+        }
+
+        if (!start.isBefore(now)) {
+          debugPrint('      🔵 UPCOMING CLASS');
+
           if (nextStart == null || start.isBefore(nextStart)) {
+            nextSchedule = schedule;
             nextStart = start;
           }
+
+          continue;
+        }
+
+        debugPrint('      ⚪ FINISHED CLASS');
+
+        if (finishedEnd == null || end.isAfter(finishedEnd)) {
+          lastFinishedSchedule = schedule;
+          finishedEnd = end;
         }
       }
 
-      if (ongoingEnd != null) {
-        ongoing.add(MapEntry(subject, ongoingEnd));
-      } else if (nextStart != null) {
-        upcoming.add(MapEntry(subject, nextStart));
+      if (activeSchedule != null && activeEnd != null) {
+        debugPrint('   👉 GROUP: CURRENT');
+        debugPrint('   👉 END: $activeEnd');
+
+        currentlyActive.add(
+          _SubjectScheduleState(subject: subject, time: activeEnd),
+        );
+      } else if (nextSchedule != null && nextStart != null) {
+        debugPrint('   👉 GROUP: UPCOMING');
+        debugPrint('   👉 START: $nextStart');
+
+        upcoming.add(_SubjectScheduleState(subject: subject, time: nextStart));
+      } else if (lastFinishedSchedule != null && finishedEnd != null) {
+        debugPrint('   👉 GROUP: FINISHED');
+        debugPrint('   👉 END: $finishedEnd');
+
+        finished.add(
+          _SubjectScheduleState(subject: subject, time: finishedEnd),
+        );
       } else {
-        rest.add(subject);
+        debugPrint('   👉 GROUP: NO SCHEDULE');
+        noSchedule.add(subject);
       }
     }
 
-    ongoing.sort((a, b) => a.value.compareTo(b.value));
-    upcoming.sort((a, b) => a.value.compareTo(b.value));
+    // ============================================================
+    // SORT EACH GROUP
+    // ============================================================
 
-    return [
-      ...ongoing.map((e) => e.key),
-      ...upcoming.map((e) => e.key),
-      ...rest..sort(
-        (a, b) => a.name.compareTo(b.name),
-      ), // stable, alphabetical fallback
+    currentlyActive.sort((a, b) => a.time.compareTo(b.time));
+
+    upcoming.sort((a, b) => a.time.compareTo(b.time));
+
+    finished.sort((a, b) => b.time.compareTo(a.time));
+
+    noSchedule.sort(
+      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+    );
+
+    // ============================================================
+    // FINAL ORDER
+    // ============================================================
+
+    final result = [
+      ...currentlyActive.map((item) => item.subject),
+      ...upcoming.map((item) => item.subject),
+      ...finished.map((item) => item.subject),
+      ...noSchedule,
     ];
+
+    debugPrint('');
+    debugPrint('══════════════════════════════════════════════════════');
+    debugPrint('🏁 FINAL SUBJECT ORDER');
+    debugPrint('══════════════════════════════════════════════════════');
+
+    for (var i = 0; i < result.length; i++) {
+      final subject = result[i];
+
+      String group = 'UNKNOWN';
+
+      if (currentlyActive.any((x) => x.subject.id == subject.id)) {
+        group = 'CURRENT';
+      } else if (upcoming.any((x) => x.subject.id == subject.id)) {
+        group = 'UPCOMING';
+      } else if (finished.any((x) => x.subject.id == subject.id)) {
+        group = 'FINISHED';
+      } else if (noSchedule.any((x) => x.id == subject.id)) {
+        group = 'NO SCHEDULE';
+      }
+
+      debugPrint(
+        '${i + 1}. ${subject.name} '
+        '(id=${subject.id}) → $group',
+      );
+    }
+
+    debugPrint('══════════════════════════════════════════════════════');
+    debugPrint('');
+
+    return result;
   }
 
   /// "Now" if the subject has a class in progress right now, a formatted
@@ -466,8 +677,7 @@ class _AskAlfredBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
       color: Colors.transparent,
@@ -491,14 +701,20 @@ class _AskAlfredBar extends StatelessWidget {
                 color: colorScheme.primary,
               ),
               const SizedBox(width: 10),
+
               Expanded(
                 child: Text(
-                  'Ask Alfred anything…',
+                  'How may I assist you, sir?',
                   style: AppTextStyles.bodyMedium.copyWith(
+                    fontFamily: 'Cinzel',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.2,
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
+
               Icon(
                 Icons.mic_none_rounded,
                 size: 19,
@@ -527,7 +743,9 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    
     final theme = Theme.of(context);
+
     final colorScheme = theme.colorScheme;
 
     return Row(
