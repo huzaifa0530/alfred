@@ -14,7 +14,6 @@ import '../../domain/usecases/delete_attendance.dart';
 import '../../domain/usecases/get_attendance.dart';
 import '../../domain/usecases/get_attendance_summary.dart';
 import '../../domain/usecases/get_attendance_for_schedule.dart';
-import '../../../subjects/domain/usecases/get_subjects.dart';
 
 /// DAO
 final attendanceRecordsDaoProvider = Provider<AttendanceDao>((ref) {

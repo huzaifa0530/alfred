@@ -1,5 +1,4 @@
 import 'package:alfred/app/theme/app_text_styles.dart';
-import 'package:alfred/core/notifications/notification_service.dart';
 import 'package:alfred/core/notifications/recurring_alarm_service.dart';
 import 'package:alfred/core/utils/scheduletime.dart';
 import 'package:flutter/material.dart';

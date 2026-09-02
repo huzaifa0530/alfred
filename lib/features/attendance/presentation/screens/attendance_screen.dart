@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../subjects/domain/entities/subject.dart';
-import '../../../subjects/presentation/controllers/subjects_providers.dart';
 import '../../../subjects/presentation/controllers/subjects_controller.dart';
 import '../controllers/attendance_providers.dart';
 
@@ -187,7 +186,6 @@ class _SubjectAttendanceCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
 
     final attendanceAsync = ref.watch(
       attendanceForSubjectProvider(subject.id),

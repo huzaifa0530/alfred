@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/daos/subjects_dao.dart';
 import '../../../../core/database/database_providers.dart';
 import '../../data/datasources/subjects_local_datasource.dart';
-import '../../data/repositories/subjects_repository_impl.dart';
 import '../../domain/repositories/subjects_repository.dart';
 import '../../domain/usecases/create_subject.dart';
 import '../../domain/usecases/delete_subject.dart';

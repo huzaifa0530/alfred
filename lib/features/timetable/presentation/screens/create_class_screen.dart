@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../subjects/presentation/controllers/subjects_controller.dart';
-import '../../../subjects/presentation/controllers/subjects_providers.dart';
 import '../../domain/entities/class_schedule.dart';
 import '../controllers/timetable_providers.dart';
 

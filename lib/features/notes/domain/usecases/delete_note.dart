@@ -1,4 +1,3 @@
-import '../entities/note.dart';
 import '../repositories/notes_repository.dart';
 
 class DeleteNote {

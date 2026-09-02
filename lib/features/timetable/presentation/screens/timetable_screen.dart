@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/date_utils.dart';
 import '../../../attendance/presentation/widgets/mark_attendance_sheet.dart';
-import '../../../subjects/presentation/controllers/subjects_providers.dart';
 import '../../domain/entities/class_schedule.dart';
 import '../controllers/timetable_providers.dart';
 import '../widgets/class_card.dart';
@@ -27,7 +26,6 @@ class _TimetableScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
 
     final schedulesAsync =
         ref.watch(

@@ -1,5 +1,4 @@
 import 'package:alfred/core/database/database_providers.dart';
-import 'package:alfred/core/notifications/recurring_alarm_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/daos/events_dao.dart';

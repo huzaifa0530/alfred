@@ -4,7 +4,6 @@ import '../../../events/domain/entities/event.dart';
 import '../../../events/presentation/controllers/events_providers.dart';
 import '../../../subjects/domain/entities/subject.dart';
 import '../../../subjects/presentation/controllers/subjects_controller.dart';
-import '../../../subjects/presentation/controllers/subjects_providers.dart';
 
 final nextEventProvider = Provider<Event?>((ref) {
   final eventsAsync = ref.watch(allEventsProvider);

@@ -42,14 +42,12 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isSending = false;
 
-  File? _pendingFile;
-  String? _pendingType;
+
 
   bool _isRecording = false;
   Duration _recordingDuration = Duration.zero;
   Timer? _recordingTimer;
 
-  String? _pendingAudioPath;
 
   final ImagePicker _imagePicker = ImagePicker();
 

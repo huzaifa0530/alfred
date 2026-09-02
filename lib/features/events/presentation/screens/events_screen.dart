@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../controllers/events_providers.dart';
 import '../widgets/event_card.dart';
-import 'create_event_screen.dart';
 
 class EventsScreen extends ConsumerStatefulWidget {
   const EventsScreen({super.key});
@@ -15,7 +14,7 @@ class EventsScreen extends ConsumerStatefulWidget {
 
 class _EventsScreenState extends ConsumerState<EventsScreen> {
   List<int> _manualOrder = [];
-
+  bool _manualOrderLoaded = false;
   @override
   void initState() {
     super.initState();
@@ -23,8 +22,20 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
   }
 
   Future<void> _loadManualOrder() async {
+    debugPrint('📥 Loading manual order...');
+
     final order = await ref.read(eventOrderStorageProvider).getOrder();
-    if (mounted) setState(() => _manualOrder = order);
+
+    debugPrint('📥 Loaded manual order = $order');
+
+    if (!mounted) return;
+
+    setState(() {
+      _manualOrder = order;
+      _manualOrderLoaded = true;
+    });
+
+    debugPrint('✅ Manual order ready = $_manualOrder');
   }
 
   bool _showCompleted = false;
@@ -38,22 +49,42 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
     'Assignment',
     'Exam',
   ];
-
   List<T> _applyManualOrder<T>(List<T> events, int Function(T) getId) {
-    final manualIndex = {
+    debugPrint(
+      '🔀 APPLY ORDER | manualOrder=$_manualOrder | '
+      'eventIds=${events.map(getId).toList()}',
+    );
+
+    final manualIndex = <int, int>{
       for (var i = 0; i < _manualOrder.length; i++) _manualOrder[i]: i,
     };
 
     final ordered = List<T>.from(events);
-    ordered.sort((a, b) {
-      final aIdx = manualIndex[getId(a)];
-      final bIdx = manualIndex[getId(b)];
 
-      if (aIdx != null && bIdx != null) return aIdx.compareTo(bIdx);
-      if (aIdx != null) return -1; // manually-ordered items float to top
-      if (bIdx != null) return 1;
-      return 0; // keep existing relative order (priority/date) for the rest
+    ordered.sort((a, b) {
+      final aId = getId(a);
+      final bId = getId(b);
+
+      final aIndex = manualIndex[aId];
+      final bIndex = manualIndex[bId];
+
+      if (aIndex != null && bIndex != null) {
+        return aIndex.compareTo(bIndex);
+      }
+
+      if (aIndex != null) {
+        return -1;
+      }
+
+      if (bIndex != null) {
+        return 1;
+      }
+
+      return 0;
     });
+
+    debugPrint('🔀 APPLY RESULT = ${ordered.map(getId).toList()}');
+
     return ordered;
   }
 
@@ -88,6 +119,9 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                           title: group.title,
                           events: group.events,
                           onCompletedChanged: _markCompleted,
+                          onManualReorder: _manualOrderLoaded
+                              ? _handleManualReorder
+                              : null,
                         );
                       }, childCount: groups.length),
                     ),
@@ -183,17 +217,16 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
   }
 
   List<_EventGroup> _groupEvents(List events) {
-    final overdue = [];
-    final today = [];
-    final tomorrow = [];
-    final thisWeek = [];
-    final later = [];
+    final overdue = <dynamic>[];
+    final today = <dynamic>[];
+    final tomorrow = <dynamic>[];
+    final thisWeek = <dynamic>[];
+    final later = <dynamic>[];
 
     final now = DateTime.now();
-
     final todayDate = DateTime(now.year, now.month, now.day);
-
     final tomorrowDate = todayDate.add(const Duration(days: 1));
+    final weekEnd = todayDate.add(const Duration(days: 7));
 
     for (final event in events) {
       if (event.isCompleted && !_showCompleted) {
@@ -212,7 +245,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
         today.add(event);
       } else if (eventDate == tomorrowDate) {
         tomorrow.add(event);
-      } else if (eventDate.isBefore(todayDate.add(const Duration(days: 7)))) {
+      } else if (eventDate.isBefore(weekEnd)) {
         thisWeek.add(event);
       } else {
         later.add(event);
@@ -220,37 +253,115 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
     }
 
     return [
-      _EventGroup(
-        title: 'Overdue',
-        events: _applyManualOrder(overdue, (e) => e.id),
-        onManualReorder: _handleManualReorder,
-      ),
-      if (today.isNotEmpty) _EventGroup(title: 'Today', events: today),
-      if (tomorrow.isNotEmpty) _EventGroup(title: 'Tomorrow', events: tomorrow),
+      if (overdue.isNotEmpty)
+        _EventGroup(
+          title: 'Overdue',
+          events: _applyManualOrder(overdue, (e) => e.id),
+          onCompletedChanged: _markCompleted,
+          onManualReorder: _handleManualReorder,
+        ),
+
+      if (today.isNotEmpty)
+        _EventGroup(
+          title: 'Today',
+          events: _applyManualOrder(today, (e) => e.id),
+          onCompletedChanged: _markCompleted,
+          onManualReorder: _handleManualReorder,
+        ),
+
+      if (tomorrow.isNotEmpty)
+        _EventGroup(
+          title: 'Tomorrow',
+          events: _applyManualOrder(tomorrow, (e) => e.id),
+          onCompletedChanged: _markCompleted,
+          onManualReorder: _handleManualReorder,
+        ),
+
       if (thisWeek.isNotEmpty)
-        _EventGroup(title: 'This Week', events: thisWeek),
-      if (later.isNotEmpty) _EventGroup(title: 'Later', events: later),
+        _EventGroup(
+          title: 'This Week',
+          events: _applyManualOrder(thisWeek, (e) => e.id),
+          onCompletedChanged: _markCompleted,
+          onManualReorder: _handleManualReorder,
+        ),
+
+      if (later.isNotEmpty)
+        _EventGroup(
+          title: 'Later',
+          events: _applyManualOrder(later, (e) => e.id),
+          onCompletedChanged: _markCompleted,
+          onManualReorder: _handleManualReorder,
+        ),
     ];
   }
 
-Future<void> _handleManualReorder(List<dynamic> reorderedGroup) async {
-  final newIds = reorderedGroup
-      .map<int>((e) => e.id as int)
-      .toList();
+  Future<void> _handleManualReorder(List<dynamic> reorderedGroup) async {
+    debugPrint('');
+    debugPrint('══════════════════════════════════════');
+    debugPrint('🚨 REORDER STARTED');
 
-  final merged = [
-    ...newIds,
-    ..._manualOrder.where((id) => !newIds.contains(id)),
-  ];
+    final reorderedIds = reorderedGroup
+        .map<int>((event) => event.id as int)
+        .toList();
 
-  await ref.read(eventOrderStorageProvider).saveOrder(merged);
+    debugPrint('🚨 Reordered group IDs = $reorderedIds');
+    debugPrint('🚨 Old manual order     = $_manualOrder');
 
-  setState(() {
-    _manualOrder = merged;
-  });
+    final newOrder = <int>[];
 
-  ref.invalidate(manualEventOrderProvider);
-}
+    // Add the newly reordered group first.
+    newOrder.addAll(reorderedIds);
+
+    // Keep all other existing IDs.
+    for (final id in _manualOrder) {
+      if (!reorderedIds.contains(id)) {
+        newOrder.add(id);
+      }
+    }
+
+    debugPrint('💾 NEW ORDER TO SAVE = $newOrder');
+
+    // Update UI FIRST.
+    setState(() {
+      _manualOrder = newOrder;
+    });
+
+    debugPrint('🖥️ UI STATE UPDATED = $_manualOrder');
+
+    // Save to storage.
+    try {
+      await ref.read(eventOrderStorageProvider).saveOrder(newOrder);
+
+      debugPrint('✅ STORAGE SAVE SUCCESS');
+    } catch (e, stack) {
+      debugPrint('❌ STORAGE SAVE FAILED: $e');
+      debugPrint('$stack');
+    }
+
+    // Read it back immediately to verify.
+    try {
+      final verifyOrder = await ref.read(eventOrderStorageProvider).getOrder();
+
+      debugPrint('🔍 STORAGE VERIFY = $verifyOrder');
+
+      if (verifyOrder.toString() != newOrder.toString()) {
+        debugPrint('❌❌❌ STORAGE DID NOT SAVE CORRECTLY');
+        debugPrint('Expected = $newOrder');
+        debugPrint('Actual   = $verifyOrder');
+      } else {
+        debugPrint('✅ STORAGE VERIFIED CORRECTLY');
+      }
+    } catch (e) {
+      debugPrint('❌ STORAGE VERIFY FAILED: $e');
+    }
+
+    ref.invalidate(manualEventOrderProvider);
+
+    debugPrint('🚨 REORDER FINISHED');
+    debugPrint('══════════════════════════════════════');
+    debugPrint('');
+  }
+
   List _filterEvents(List events) {
     return events.where((event) {
       if (!_showCompleted && event.isCompleted) {
@@ -359,12 +470,21 @@ class _EventGroup extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text('${events.length}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+                  child: Text(
+                    '${events.length}',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -375,11 +495,32 @@ class _EventGroup extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             buildDefaultDragHandles: false,
             onReorder: (oldIndex, newIndex) {
-              if (onManualReorder == null) return;
+              debugPrint('');
+              debugPrint('🟡 FLUTTER REORDER CALLBACK');
+              debugPrint('🟡 oldIndex = $oldIndex');
+              debugPrint('🟡 newIndex = $newIndex');
+              debugPrint(
+                '🟡 current IDs = ${events.map((e) => e.id).toList()}',
+              );
+
+              if (onManualReorder == null) {
+                debugPrint('❌ onManualReorder is NULL');
+                return;
+              }
+
               final reordered = List<dynamic>.from(events);
-              if (newIndex > oldIndex) newIndex -= 1;
+
+              if (newIndex > oldIndex) {
+                newIndex -= 1;
+              }
+
               final item = reordered.removeAt(oldIndex);
               reordered.insert(newIndex, item);
+
+              debugPrint(
+                '🟢 AFTER DRAG = ${reordered.map((e) => e.id).toList()}',
+              );
+
               onManualReorder!(reordered);
             },
             children: [
@@ -403,7 +544,9 @@ class _EventGroup extends StatelessWidget {
       ),
     );
   }
-}class _EmptyEvents extends StatelessWidget {
+}
+
+class _EmptyEvents extends StatelessWidget {
   const _EmptyEvents();
 
   @override

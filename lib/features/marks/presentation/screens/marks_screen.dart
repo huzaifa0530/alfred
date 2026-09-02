@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../subjects/domain/entities/subject.dart';
 import '../../../subjects/presentation/controllers/subjects_controller.dart';
-import '../../../subjects/presentation/controllers/subjects_providers.dart';
 
 import '../controllers/marks_providers.dart';
 import '../widgets/add_mark_component_sheet.dart';

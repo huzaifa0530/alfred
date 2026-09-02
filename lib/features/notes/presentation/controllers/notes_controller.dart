@@ -1,11 +1,8 @@
 import 'dart:io';
 
 import 'package:alfred/core/storage/file_storage_service.dart';
-import 'package:alfred/features/attachments/presentation/controllers/attachment_controller.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/ai/ai_providers.dart';
 import '../../../attachments/domain/entities/attachment.dart';
 import '../../../attachments/domain/repositories/attachments_repository.dart';
 import '../../../attachments/presentation/controllers/attachment_providers.dart';

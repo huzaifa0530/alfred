@@ -1,7 +1,6 @@
 import 'package:alfred/app/router/route_names.dart';
 import 'package:alfred/app/theme/app_colors.dart';
 import 'package:alfred/app/theme/app_text_styles.dart';
-import 'package:alfred/core/database/database_providers.dart';
 import 'package:alfred/features/home/presentation/widgets/ask_alfred_sheet.dart';
 import 'package:alfred/features/subjects/domain/entities/subject.dart';
 import 'package:alfred/features/timetable/domain/entities/class_schedule.dart';
@@ -43,8 +42,6 @@ class HomeScreen extends ConsumerWidget {
     final subjects = ref.watch(homeSubjectsProvider);
 
     final todaySchedulesAsync = ref.watch(todayTimetableProvider);
-    final todaySchedules = todaySchedulesAsync.value ?? const <ClassSchedule>[];
-    final sortedSubjects = _sortSubjectsByTimetable(subjects, todaySchedules);
     return Scaffold(
       extendBody: true,
       body: Stack(
