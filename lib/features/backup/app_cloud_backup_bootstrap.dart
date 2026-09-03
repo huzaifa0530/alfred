@@ -1,11 +1,9 @@
-// features/backup/app_cloud_backup_bootstrap.dart
+import 'package:flutter/material.dart';
+
 import '../../core/firebase/firebase_credentials_storage.dart';
 import '../../core/firebase/dynamic_firebase_app.dart';
 import 'auto_backup_scheduler.dart';
 
-/// Call once during app startup, after your local DB/services are
-/// ready but before the first frame really needs to be interactive —
-/// safe to run in the background since it never throws.
 class AppCloudBackupBootstrap {
   final FirebaseCredentialsStorage credentialsStorage;
   final DynamicFirebaseApp firebaseApp;
@@ -17,20 +15,83 @@ class AppCloudBackupBootstrap {
     required this.autoBackupScheduler,
   });
 
-  /// Silently reconnects to the user's saved Firebase project (if any)
-  /// and triggers the daily-if-due backup check. Never throws —
-  /// failures here shouldn't block app startup.
   Future<void> run() async {
-    try {
-      final creds = await credentialsStorage.read();
-      if (creds == null) return; // user never connected Firebase — fine
+    debugPrint('========================================');
+    debugPrint('CLOUD BOOTSTRAP: START');
 
-      await firebaseApp.connect(creds);
+    try {
+      debugPrint(
+        'CLOUD BOOTSTRAP: Reading saved credentials...',
+      );
+
+      final creds =
+          await credentialsStorage.read();
+
+      if (creds == null) {
+        debugPrint(
+          'CLOUD BOOTSTRAP: No saved credentials.',
+        );
+        return;
+      }
+
+      debugPrint(
+        'CLOUD BOOTSTRAP: Credentials found',
+      );
+
+      debugPrint(
+        'CLOUD BOOTSTRAP: projectId = '
+        '${creds.projectId}',
+      );
+
+      debugPrint(
+        'CLOUD BOOTSTRAP: Calling Firebase connect...',
+      );
+
+      final uid =
+          await firebaseApp.connect(creds);
+
+      debugPrint(
+        'CLOUD BOOTSTRAP: Firebase connect SUCCESS',
+      );
+
+      debugPrint(
+        'CLOUD BOOTSTRAP: UID = $uid',
+      );
+
+      debugPrint(
+        'CLOUD BOOTSTRAP: isConnected = '
+        '${firebaseApp.isConnected}',
+      );
+
+      debugPrint(
+        'CLOUD BOOTSTRAP: Running scheduler...',
+      );
+
       await autoBackupScheduler.runIfDue();
-    } catch (_) {
-      // Bad/stale credentials, offline, project deleted, etc.
-      // Local backups still work regardless — just skip cloud silently.
-      // Settings screen will show "not connected" and let them re-auth.
+
+      debugPrint(
+        'CLOUD BOOTSTRAP: Scheduler SUCCESS',
+      );
+    } catch (e, stackTrace) {
+      debugPrint(
+        'CLOUD BOOTSTRAP: FAILED',
+      );
+
+      debugPrint(
+        'ERROR TYPE: ${e.runtimeType}',
+      );
+
+      debugPrint(
+        'ERROR: $e',
+      );
+
+      debugPrint(
+        'STACK TRACE:',
+      );
+
+      debugPrint(stackTrace.toString());
     }
+
+    debugPrint('========================================');
   }
 }

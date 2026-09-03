@@ -17,7 +17,8 @@ import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_text_styles.dart';
 import '../../domain/entities/subject.dart';
 import '../controllers/subjects_providers.dart';
-
+import 'package:go_router/go_router.dart';
+import 'package:alfred/app/router/route_names.dart';
 class SubjectDetailsScreen extends ConsumerWidget {
   final int subjectId;
 
@@ -459,19 +460,27 @@ class _SubjectDetailsContentState
           icon: Icons.event_note_rounded,
           title: 'Upcoming',
           subtitle: 'Assignments, quizzes and important dates',
-          onTap: () {},
+          onTap: () {
+            context.push(RouteNames.events);
+          },
         ),
+
         _buildSection(
           icon: Icons.check_circle_outline_rounded,
           title: 'Attendance',
           subtitle: 'Track your classes and attendance',
-          onTap: () {},
+          onTap: () {
+            context.push(RouteNames.attendance);
+          },
         ),
+
         _buildSection(
           icon: Icons.analytics_outlined,
           title: 'Marks',
           subtitle: 'Quizzes, assignments, labs and exams',
-          onTap: () {},
+          onTap: () {
+            context.push(RouteNames.marks);
+          },
         ),
       ],
     );
