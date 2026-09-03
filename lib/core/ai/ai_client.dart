@@ -1,6 +1,6 @@
 import 'package:alfred/core/ai/ai_provider.dart';
+import 'package:flutter/material.dart';
 
-import 'ai_providers.dart';
 import 'ai_settings_datasource.dart';
 import 'gemini_client.dart';
 import 'groq_client.dart';
@@ -18,16 +18,16 @@ class AiClient {
   }
 
   Future<String> generateText(String prompt) async {
-    print('AI: generateText started');
+    debugPrint('AI: generateText started');
 
     final provider = await _readWithTimeout(_settings.getProvider(), 'the AI provider setting');
-    print('AI: provider = $provider');
+    debugPrint('AI: provider = $provider');
 
     final apiKey = await _readWithTimeout(_settings.getApiKey(provider), 'the API key');
-    print('AI: API key exists = ${apiKey != null && apiKey.isNotEmpty}');
+    debugPrint('AI: API key exists = ${apiKey != null && apiKey.isNotEmpty}');
 
     final model = await _readWithTimeout(_settings.getModel(), 'the model setting') ?? provider.defaultModel;
-    print('AI: model = $model');
+    debugPrint('AI: model = $model');
 
     if (apiKey == null || apiKey.trim().isEmpty) {
       throw StateError(
@@ -35,17 +35,17 @@ class AiClient {
       );
     }
 
-    print('AI: sending request...');
+    debugPrint('AI: sending request...');
 
     switch (provider) {
       case AiProvider.gemini:
         final result = await GeminiClient(apiKey: apiKey, model: model).generateText(prompt);
-        print('AI: Gemini response received');
+        debugPrint('AI: Gemini response received');
         return result;
 
       case AiProvider.groq:
         final result = await GroqClient(apiKey: apiKey, model: model).generateText(prompt);
-        print('AI: Groq response received');
+        debugPrint('AI: Groq response received');
         return result;
     }
   }

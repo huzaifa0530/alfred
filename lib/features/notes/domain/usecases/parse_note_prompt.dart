@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import '../../../../core/ai/gemini_client.dart';
 import 'package:alfred/core/ai/ai_client.dart';
 
 class ParsedNotePrompt {

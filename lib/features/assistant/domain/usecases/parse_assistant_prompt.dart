@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:alfred/core/ai/ai_client.dart';
 
-import '../../../../core/ai/gemini_client.dart';
 import '../entities/assistant_intent.dart';
 
 class ParseAssistantPrompt {

@@ -1,40 +1,49 @@
-import '../repositories/attendance_repository.dart';
+import '../entities/attendance_record.dart';
+import '../../../timetable/domain/entities/class_schedule.dart';
 
-class AttendanceSummary {
-  final int total;
+class SubjectAttendanceSummary {
   final int present;
   final int absent;
-  final double percentage;
+  final int expected;
+  final double? percentage;
 
-  const AttendanceSummary({
-    required this.total,
+  SubjectAttendanceSummary({
     required this.present,
     required this.absent,
-    required this.percentage,
-  });
+    required this.expected,
+  }) : percentage = expected == 0 ? null : (present / expected) * 100;
 }
 
 class GetAttendanceSummary {
-  final AttendanceRepository repository;
+  SubjectAttendanceSummary call({
+    required List<ClassSchedule> schedulesForSubject,
+    required List<AttendanceRecord> recordsForSubject,
+    required DateTime asOf,
+  }) {
+    final present = recordsForSubject.where((r) => r.present).length;
+    final absent = recordsForSubject.where((r) => !r.present).length;
 
-  GetAttendanceSummary(this.repository);
+    var expected = 0;
+    for (final schedule in schedulesForSubject) {
+      expected += _occurrences(schedule.weekday, schedule.createdAt, asOf);
+    }
 
-  Future<AttendanceSummary> call(int subjectId) async {
-    final records = await repository.watchAttendanceForSubject(subjectId).first;
+    return SubjectAttendanceSummary(present: present, absent: absent, expected: expected);
+  }
 
-    final total = records.length;
-    final present = records.where((record) => record.present).length;
-    final absent = total - present;
+  int _occurrences(int weekday, DateTime from, DateTime to) {
+    var cursor = DateTime(from.year, from.month, from.day);
+    final end = DateTime(to.year, to.month, to.day);
+    if (end.isBefore(cursor)) return 0;
 
-    final percentage = total == 0
-        ? 0.0
-        : (present / total) * 100;
+    final lead = (weekday - cursor.weekday) % 7;
+    cursor = cursor.add(Duration(days: lead < 0 ? lead + 7 : lead));
 
-    return AttendanceSummary(
-      total: total,
-      present: present,
-      absent: absent,
-      percentage: percentage,
-    );
+    var count = 0;
+    while (!cursor.isAfter(end)) {
+      count++;
+      cursor = cursor.add(const Duration(days: 7));
+    }
+    return count;
   }
 }

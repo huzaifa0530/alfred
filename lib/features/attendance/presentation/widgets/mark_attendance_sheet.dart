@@ -34,48 +34,77 @@ class MarkAttendanceSheet extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final date = dateForWeekday(schedule.weekday);
-    final key = (scheduleId: schedule.id, date: date);
+ @override
+Widget build(BuildContext context, WidgetRef ref) {
+  final theme = Theme.of(context);
+  final date = dateForWeekday(schedule.weekday);
 
-    final existingAsync = ref.watch(attendanceForScheduleProvider(key));
+  final today = DateTime.now();
+  final todayOnly = DateTime(today.year, today.month, today.day);
+  final dateOnly = DateTime(date.year, date.month, date.day);
+  final isFuture = dateOnly.isAfter(todayOnly);
 
-    Future<void> mark(bool present) async {
-      await ref.read(attendanceControllerProvider).markAttendance(
-            subjectId: schedule.subjectId,
-            scheduleId: schedule.id,
-            date: date,
-            present: present,
-          );
+  final key = (scheduleId: schedule.id, date: date);
+  final existingAsync = ref.watch(attendanceForScheduleProvider(key));
 
-      if (context.mounted) {
-        Navigator.of(context).pop();
-      }
+  Future<void> mark(bool present) async {
+    await ref.read(attendanceControllerProvider).markAttendance(
+          subjectId: schedule.subjectId,
+          scheduleId: schedule.id,
+          date: date,
+          present: present,
+        );
+
+    if (context.mounted) {
+      Navigator.of(context).pop();
     }
+  }
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              subjectName,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
+  return SafeArea(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            subjectName,
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${schedule.startTime} - ${schedule.endTime}',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          if (isFuture) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.schedule_rounded, color: theme.colorScheme.onSurfaceVariant, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "This class hasn't happened yet — you can mark attendance once it starts.",
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              '${schedule.startTime} - ${schedule.endTime}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 20),
-
+            const SizedBox(height: 16),
+          ] else
             existingAsync.when(
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
@@ -102,28 +131,28 @@ class MarkAttendanceSheet extends ConsumerWidget {
               },
             ),
 
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => mark(true),
-                    icon: const Icon(Icons.check_rounded),
-                    label: const Text('Present'),
-                  ),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: isFuture ? null : () => mark(true),
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Present'),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => mark(false),
-                    icon: const Icon(Icons.close_rounded),
-                    label: const Text('Absent'),
-                  ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: isFuture ? null : () => mark(false),
+                  icon: const Icon(Icons.close_rounded),
+                  label: const Text('Absent'),
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

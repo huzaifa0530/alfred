@@ -1,7 +1,6 @@
 import 'package:alfred/core/ai/ai_provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import 'ai_providers.dart';
 
 class AiSettingsDataSource {
   static const _storage = FlutterSecureStorage();

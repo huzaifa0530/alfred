@@ -1,3 +1,4 @@
+import 'package:alfred/features/timetable/presentation/controllers/timetable_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -177,57 +178,39 @@ class _OverallCard extends ConsumerWidget {
     );
   }
 }
+
 class _SubjectAttendanceCard extends ConsumerWidget {
   final Subject subject;
 
-  const _SubjectAttendanceCard({
-    required this.subject,
-  });
+  const _SubjectAttendanceCard({required this.subject});
 
   @override
+  @override
   Widget build(BuildContext context, WidgetRef ref) {
-
-    final attendanceAsync = ref.watch(
-      attendanceForSubjectProvider(subject.id),
-    );
+    final attendanceAsync = ref.watch(attendanceForSubjectProvider(subject.id));
+    final schedules = ref.watch(schedulesForSubjectProvider(subject.id));
 
     return attendanceAsync.when(
       loading: () {
-        return _buildCard(
-          context,
-          percentage: null,
-          present: 0,
-          absent: 0,
-        );
+        return _buildCard(context, percentage: null, present: 0, absent: 0);
       },
-
       error: (_, __) {
-        return _buildCard(
-          context,
-          percentage: null,
-          present: 0,
-          absent: 0,
-        );
+        return _buildCard(context, percentage: null, present: 0, absent: 0);
       },
-
       data: (records) {
-        final total = records.length;
-
-        final present = records
-            .where((record) => record.present)
-            .length;
-
-        final absent = total - present;
-
-        final percentage = total == 0
-            ? null
-            : (present / total) * 100;
+        final summary = ref
+            .read(getAttendanceSummaryProvider)
+            .call(
+              schedulesForSubject: schedules,
+              recordsForSubject: records,
+              asOf: DateTime.now(),
+            );
 
         return _buildCard(
           context,
-          percentage: percentage,
-          present: present,
-          absent: absent,
+          percentage: summary.percentage,
+          present: summary.present,
+          absent: summary.absent,
         );
       },
     );
@@ -319,6 +302,7 @@ class _SubjectAttendanceCard extends ConsumerWidget {
     );
   }
 }
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 

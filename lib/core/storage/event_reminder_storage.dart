@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:alfred/core/notifications/recurring_alarm_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../notifications/notification_service.dart';

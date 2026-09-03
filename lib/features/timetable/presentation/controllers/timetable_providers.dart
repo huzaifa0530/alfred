@@ -55,3 +55,15 @@ final deleteScheduleProvider = Provider<DeleteSchedule>((ref) {
 final timetableSnapshotProvider = FutureProvider<List<ClassSchedule>>((ref) {
   return ref.watch(timetableRepositoryProvider).getAllSchedulesOnce();
 });
+final schedulesForSubjectProvider = Provider.family<List<ClassSchedule>, int>((
+  ref,
+  subjectId,
+) {
+  return ref
+      .watch(allTimetableProvider)
+      .maybeWhen(
+        data: (schedules) =>
+            schedules.where((s) => s.subjectId == subjectId).toList(),
+        orElse: () => const [],
+      );
+});

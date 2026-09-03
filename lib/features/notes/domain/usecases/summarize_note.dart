@@ -1,6 +1,5 @@
 import 'package:alfred/core/ai/ai_client.dart';
 
-import '../../../../core/ai/gemini_client.dart';
 
 class SummarizeNote {
   final AiClient _client;

@@ -1,9 +1,10 @@
 import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:alfred/app/router/route_names.dart';
 import 'package:alfred/core/ai/ai_provider.dart';
+import 'package:alfred/core/firebase/firebase_credentials_parser.dart';
 import 'package:alfred/core/notifications/recurring_alarm_service.dart';
+import 'package:alfred/features/backup/backup_providers.dart';
+import 'package:alfred/features/backup/cloud_backup_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -105,6 +106,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: _AiProviderSection(state: state),
                 ),
               ),
+              const _SectionTitle('Cloud Backup'),
+              const Card(child: _CloudBackupSection()),
               const _SectionTitle('Backup & Sync'),
               Card(
                 child: SwitchListTile(
@@ -306,6 +309,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _showBackupPicker(BuildContext context) async {
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Restore from',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  leading: const Icon(Icons.phone_android_outlined),
+                  title: const Text('This device'),
+                  onTap: () => Navigator.pop(context, 'local'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.cloud_outlined),
+                  title: const Text('Cloud'),
+                  onTap: () => Navigator.pop(context, 'cloud'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || source == null) return;
+
+    if (source == 'local') {
+      await _showLocalBackupPicker(context);
+    } else {
+      await _showCloudBackupPicker(context);
+    }
+  }
+
+  // This is your old _showBackupPicker body, renamed:
+  Future<void> _showLocalBackupPicker(BuildContext context) async {
     final backups = await ref
         .read(settingsControllerProvider.notifier)
         .listAvailableBackups();
@@ -363,6 +409,86 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
     if (chosen is File) {
       await _restoreFromFile(context, chosen);
+    }
+  }
+
+  Future<void> _showCloudBackupPicker(BuildContext context) async {
+    List<CloudBackupInfo> backups;
+    try {
+      backups = await ref.read(cloudBackupServiceProvider).listCloudBackups();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Not connected to a cloud project: $e')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    final chosen = await showModalBottomSheet<CloudBackupInfo>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Cloud backups',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 16),
+                if (backups.isEmpty)
+                  const Text('No cloud backups found')
+                else
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: backups.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final b = backups[index];
+                        return ListTile(
+                          title: Text(b.fileName),
+                          subtitle: Text(
+                            DateFormat(
+                              'MMM d, y • h:mm a',
+                            ).format(b.uploadedAt),
+                          ),
+                          onTap: () => Navigator.pop(context, b),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || chosen == null) return;
+
+    setState(() => _localRestoring = true);
+    try {
+      final file = await ref
+          .read(cloudBackupServiceProvider)
+          .downloadCloudBackup(chosen);
+      if (!mounted) return;
+      setState(() => _localRestoring = false);
+      await _restoreFromFile(
+        context,
+        file,
+      ); // reuses your existing DB-safe restore
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _localRestoring = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Download failed: $e')));
     }
   }
 
@@ -588,6 +714,244 @@ class _AiProviderSectionState extends ConsumerState<_AiProviderSection> {
             onPressed: () => controller.setAiApiKey(_keyController.text.trim()),
             child: const Text('Save key'),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+// somewhere in settings_screen.dart, alongside _AiProviderSection
+
+class _CloudBackupSection extends ConsumerStatefulWidget {
+  const _CloudBackupSection();
+
+  @override
+  ConsumerState<_CloudBackupSection> createState() =>
+      _CloudBackupSectionState();
+}
+
+class _CloudBackupSectionState extends ConsumerState<_CloudBackupSection> {
+  final _pasteController = TextEditingController();
+  bool _loading = true;
+  bool _connected = false;
+  bool _connecting = false;
+  bool _syncing = false;
+  String? _error;
+  DateTime? _lastCloudSync;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final creds = await ref.read(firebaseCredentialsStorageProvider).read();
+    final lastRun = await ref.read(autoBackupSchedulerProvider).lastRunAt();
+    if (!mounted) return;
+    setState(() {
+      _connected =
+          creds != null && ref.read(dynamicFirebaseAppProvider).isConnected;
+      _lastCloudSync = lastRun;
+      _loading = false;
+    });
+  }
+
+ Future<void> _connect() async {
+  setState(() {
+    _connecting = true;
+    _error = null;
+  });
+
+  try {
+    debugPrint('🔥 FIREBASE CONNECT: Starting...');
+
+    final raw = _pasteController.text;
+
+    debugPrint('🔥 FIREBASE CONNECT: Input length = ${raw.length}');
+    debugPrint(
+      '🔥 FIREBASE CONNECT: Contains apiKey = ${raw.contains('apiKey')}',
+    );
+    debugPrint(
+      '🔥 FIREBASE CONNECT: Contains projectId = ${raw.contains('projectId')}',
+    );
+    debugPrint(
+      '🔥 FIREBASE CONNECT: Contains appId = ${raw.contains('appId')}',
+    );
+
+    final creds = FirebaseCredentialsParser().parse(raw);
+
+    debugPrint('🔥 FIREBASE PARSE: SUCCESS');
+    debugPrint('🔥 projectId = ${creds.projectId}');
+    debugPrint('🔥 appId = ${creds.appId}');
+    debugPrint('🔥 storageBucket = ${creds.storageBucket}');
+    debugPrint('🔥 messagingSenderId = ${creds.messagingSenderId}');
+    debugPrint('🔥 apiKey length = ${creds.apiKey.length}');
+
+    debugPrint('🔥 FIREBASE CONNECT: Calling dynamicFirebaseApp.connect()...');
+
+    await ref.read(dynamicFirebaseAppProvider).connect(creds);
+
+    debugPrint('🔥 FIREBASE CONNECT: connect() SUCCESS');
+
+    await ref.read(firebaseCredentialsStorageProvider).save(creds);
+
+    debugPrint('🔥 FIREBASE CONNECT: Credentials saved');
+
+    if (!mounted) return;
+
+    setState(() {
+      _connected = true;
+      _connecting = false;
+      _pasteController.clear();
+    });
+  } catch (e, stackTrace) {
+    debugPrint('🔥🔥🔥 FIREBASE CONNECT FAILED 🔥🔥🔥');
+    debugPrint('ERROR TYPE: ${e.runtimeType}');
+    debugPrint('ERROR: $e');
+    debugPrint('STACK TRACE:\n$stackTrace');
+
+    if (!mounted) return;
+
+    setState(() {
+      _error = e is FirebaseCredentialsParseException
+          ? e.message
+          : 'Firebase error: $e';
+      _connecting = false;
+    });
+  }
+}
+  Future<void> _disconnect() async {
+    await ref.read(dynamicFirebaseAppProvider).disconnect();
+    await ref.read(firebaseCredentialsStorageProvider).clear();
+    if (!mounted) return;
+    setState(() {
+      _connected = false;
+      _lastCloudSync = null;
+    });
+  }
+
+  Future<void> _syncNow() async {
+    setState(() => _syncing = true);
+    try {
+      await ref.read(cloudBackupServiceProvider).syncNow();
+      final lastRun = await ref.read(autoBackupSchedulerProvider).lastRunAt();
+      if (!mounted) return;
+      setState(() {
+        _lastCloudSync = lastRun;
+        _syncing = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Synced to cloud')));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _syncing = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Sync failed: $e')));
+    }
+  }
+
+  @override
+  void dispose() {
+    _pasteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (!_connected) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Connect your own Firebase project to back up to the cloud. '
+              'In your Firebase console: Project Settings → General → '
+              'Add app → Web, then paste the config it gives you below.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _pasteController,
+              maxLines: 6,
+              decoration: const InputDecoration(
+                labelText: 'Firebase config',
+                hintText: '{ "apiKey": "...", "projectId": "...", ... }',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: _connecting ? null : _connect,
+                icon: _connecting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.cloud_outlined),
+                label: Text(_connecting ? 'Connecting...' : 'Connect'),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.cloud_done_outlined),
+          title: const Text('Connected to your Firebase project'),
+          subtitle: Text(
+            _lastCloudSync == null
+                ? 'No cloud sync yet'
+                : 'Last synced: ${DateFormat('MMM d, y • h:mm a').format(_lastCloudSync!)}',
+          ),
+        ),
+        const Divider(height: 1),
+        ListTile(
+          leading: const Icon(Icons.cloud_upload_outlined),
+          title: const Text('Sync now'),
+          trailing: _syncing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : null,
+          onTap: _syncing ? null : _syncNow,
+        ),
+        const Divider(height: 1),
+        ListTile(
+          leading: Icon(
+            Icons.link_off,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          title: Text(
+            'Disconnect',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+          onTap: _disconnect,
         ),
       ],
     );

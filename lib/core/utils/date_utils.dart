@@ -13,9 +13,4 @@ DateTime dateForWeekday(int weekday) {
   return normalizeDate(resolved);
 }
 
-bool? _asBool(dynamic value) {
-  if (value == null) return null;
-  if (value is bool) return value;
-  if (value is String) return value.toLowerCase() == 'true';
-  return null;
-}
+

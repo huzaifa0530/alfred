@@ -1,4 +1,3 @@
-import '../../../../core/ai/gemini_client.dart';
 import '../../../marks/domain/entities/mark.dart';
 import '../../../marks/domain/entities/mark_component.dart';
 import 'package:alfred/core/ai/ai_client.dart';

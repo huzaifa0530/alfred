@@ -61,11 +61,14 @@ final getAttendanceForScheduleProvider =
   return GetAttendanceForSchedule(ref.watch(attendanceRepositoryProvider));
 });
 
-/// Attendance summary
-final getAttendanceSummaryProvider = Provider<GetAttendanceSummary>((ref) {
-  return GetAttendanceSummary(ref.watch(attendanceRepositoryProvider));
-});
+// /// Attendance summary
+// final getAttendanceSummaryProvider = Provider<GetAttendanceSummary>((ref) {
+//   return GetAttendanceSummary(ref.watch(attendanceRepositoryProvider));
+// });
 
+final getAttendanceSummaryProvider = Provider<GetAttendanceSummary>((ref) {
+  return GetAttendanceSummary();
+});
 /// Attendance records for a specific subject (drives the dashboard,
 /// auto-updates via Drift's underlying stream)
 final attendanceForSubjectProvider =
