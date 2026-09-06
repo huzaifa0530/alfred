@@ -41,7 +41,7 @@ class HomeScreen extends ConsumerWidget {
     final nextEvent = ref.watch(nextEventProvider);
     final subjects = ref.watch(homeSubjectsProvider);
 
-    final todaySchedulesAsync = ref.watch(todayTimetableProvider);
+    final allSchedulesAsync = ref.watch(allTimetableProvider);
     return Scaffold(
       extendBody: true,
       body: Stack(
@@ -236,7 +236,7 @@ class HomeScreen extends ConsumerWidget {
                         index: 7,
                         child: subjects.isEmpty
                             ? const _EmptySubjects()
-                            : todaySchedulesAsync.when(
+                            : allSchedulesAsync.when(
                                 loading: () => Column(
                                   children: subjects
                                       .take(4)
@@ -325,246 +325,145 @@ class HomeScreen extends ConsumerWidget {
   /// 3. Subjects whose classes have already finished today
   /// 4. Subjects with no class today — alphabetical
   ///
-  List<Subject> _sortSubjectsByTimetable(
-    List<Subject> subjects,
-    List<ClassSchedule> todaySchedules,
-  ) {
-    DateTime parseTime(String value) {
-      final parts = value.split(':');
+ List<Subject> _sortSubjectsByTimetable(
+  List<Subject> subjects,
+  List<ClassSchedule> allSchedules,
+) {
+  final now = DateTime.now();
 
-      final hour = int.tryParse(parts.isNotEmpty ? parts[0] : '') ?? 0;
-      final minute = int.tryParse(parts.length > 1 ? parts[1] : '') ?? 0;
+  DateTime combine(int daysFromNow, String hhmm) {
+    final parts = hhmm.split(':');
 
-      final now = DateTime.now();
+    final hour = int.tryParse(
+          parts.isNotEmpty ? parts[0] : '',
+        ) ??
+        0;
 
-      return DateTime(now.year, now.month, now.day, hour, minute);
+    final minute = int.tryParse(
+          parts.length > 1 ? parts[1] : '',
+        ) ??
+        0;
+
+    final d = now.add(Duration(days: daysFromNow));
+
+    return DateTime(
+      d.year,
+      d.month,
+      d.day,
+      hour,
+      minute,
+    );
+  }
+
+  final byId = <int, List<ClassSchedule>>{};
+
+  for (final schedule in allSchedules) {
+    byId
+        .putIfAbsent(schedule.subjectId, () => [])
+        .add(schedule);
+  }
+
+  final currentlyActive = <_SubjectScheduleState>[];
+  final upcoming = <_SubjectScheduleState>[];
+
+  for (final subject in subjects) {
+    final schedules = byId[subject.id];
+
+    // IMPORTANT:
+    // Subject has no timetable entry → don't show it.
+    if (schedules == null || schedules.isEmpty) {
+      continue;
     }
 
-    final now = DateTime.now();
+    bool isActiveNow = false;
+    DateTime? activeEnd;
+    DateTime? bestUpcoming;
 
-    // ============================================================
-    // DEBUG — RAW DATA
-    // ============================================================
+    for (final schedule in schedules) {
+      int daysUntil =
+          (schedule.weekday - now.weekday) % 7;
 
-    debugPrint('');
-    debugPrint('══════════════════════════════════════════════════════');
-    debugPrint('📚 ALFRED SUBJECT ORDER DEBUG');
-    debugPrint('══════════════════════════════════════════════════════');
-    debugPrint('🕐 Current DateTime : $now');
-    debugPrint('📅 Current Weekday  : ${now.weekday}');
-    debugPrint('📚 Subjects count   : ${subjects.length}');
-    debugPrint('🗓️ Schedules count  : ${todaySchedules.length}');
-    debugPrint('');
-
-    debugPrint('──────────── SUBJECTS ────────────');
-
-    for (final subject in subjects) {
-      debugPrint('Subject → id=${subject.id} | name="${subject.name}"');
-    }
-
-    debugPrint('');
-
-    debugPrint('──────────── TODAY SCHEDULES ────────────');
-
-    for (final schedule in todaySchedules) {
-      debugPrint(
-        'Schedule → '
-        'id=${schedule.id} | '
-        'subjectId=${schedule.subjectId} | '
-        'weekday=${schedule.weekday} | '
-        'start=${schedule.startTime} | '
-        'end=${schedule.endTime} | '
-        'room=${schedule.room} | '
-        'active=${schedule.isActive}',
-      );
-    }
-
-    debugPrint('');
-
-    // ============================================================
-    // GROUP SCHEDULES BY SUBJECT
-    // ============================================================
-
-    final scheduleBySubject = <int, List<ClassSchedule>>{};
-
-    for (final schedule in todaySchedules) {
-      scheduleBySubject
-          .putIfAbsent(schedule.subjectId, () => <ClassSchedule>[])
-          .add(schedule);
-    }
-
-    debugPrint('──────────── SUBJECT → SCHEDULE MAP ────────────');
-
-    for (final entry in scheduleBySubject.entries) {
-      debugPrint(
-        'subjectId=${entry.key} '
-        '→ ${entry.value.length} schedule(s)',
-      );
-
-      for (final schedule in entry.value) {
-        debugPrint('   ${schedule.startTime} → ${schedule.endTime}');
-      }
-    }
-
-    debugPrint('');
-
-    // ============================================================
-    // SORTING GROUPS
-    // ============================================================
-
-    final currentlyActive = <_SubjectScheduleState>[];
-    final upcoming = <_SubjectScheduleState>[];
-    final finished = <_SubjectScheduleState>[];
-    final noSchedule = <Subject>[];
-
-    for (final subject in subjects) {
-      final schedules = scheduleBySubject[subject.id];
-
-      debugPrint('────────────────────────────────────');
-      debugPrint(
-        '🔎 CHECKING SUBJECT: '
-        '${subject.name} '
-        '(id=${subject.id})',
-      );
-
-      if (schedules == null || schedules.isEmpty) {
-        debugPrint('   ❌ NO SCHEDULE FOUND');
-        noSchedule.add(subject);
-        continue;
+      if (daysUntil < 0) {
+        daysUntil += 7;
       }
 
-      ClassSchedule? activeSchedule;
-      ClassSchedule? nextSchedule;
-      ClassSchedule? lastFinishedSchedule;
+      final start = combine(
+        daysUntil,
+        schedule.startTime,
+      );
 
-      DateTime? activeEnd;
-      DateTime? nextStart;
-      DateTime? finishedEnd;
+      final end = combine(
+        daysUntil,
+        schedule.endTime,
+      );
 
-      for (final schedule in schedules) {
-        final start = parseTime(schedule.startTime);
-        final end = parseTime(schedule.endTime);
+      // Class happening right now
+      if (daysUntil == 0) {
+        if (!now.isBefore(start) &&
+            now.isBefore(end)) {
+          isActiveNow = true;
 
-        debugPrint('   🗓️ ${schedule.startTime} → ${schedule.endTime}');
-
-        debugPrint('      start=$start | end=$end');
-
-        final isActive = !now.isBefore(start) && now.isBefore(end);
-
-        debugPrint('      isActive=$isActive');
-
-        if (isActive) {
-          debugPrint('      🟢 CURRENT CLASS');
-
-          if (activeEnd == null || end.isBefore(activeEnd)) {
-            activeSchedule = schedule;
+          if (activeEnd == null ||
+              end.isBefore(activeEnd)) {
             activeEnd = end;
           }
 
           continue;
         }
 
-        if (!start.isBefore(now)) {
-          debugPrint('      🔵 UPCOMING CLASS');
+        // Class already finished today.
+        if (start.isBefore(now)) {
+          final nextWeek =
+              start.add(const Duration(days: 7));
 
-          if (nextStart == null || start.isBefore(nextStart)) {
-            nextSchedule = schedule;
-            nextStart = start;
+          if (bestUpcoming == null ||
+              nextWeek.isBefore(bestUpcoming)) {
+            bestUpcoming = nextWeek;
           }
 
           continue;
         }
-
-        debugPrint('      ⚪ FINISHED CLASS');
-
-        if (finishedEnd == null || end.isAfter(finishedEnd)) {
-          lastFinishedSchedule = schedule;
-          finishedEnd = end;
-        }
       }
 
-      if (activeSchedule != null && activeEnd != null) {
-        debugPrint('   👉 GROUP: CURRENT');
-        debugPrint('   👉 END: $activeEnd');
-
-        currentlyActive.add(
-          _SubjectScheduleState(subject: subject, time: activeEnd),
-        );
-      } else if (nextSchedule != null && nextStart != null) {
-        debugPrint('   👉 GROUP: UPCOMING');
-        debugPrint('   👉 START: $nextStart');
-
-        upcoming.add(_SubjectScheduleState(subject: subject, time: nextStart));
-      } else if (lastFinishedSchedule != null && finishedEnd != null) {
-        debugPrint('   👉 GROUP: FINISHED');
-        debugPrint('   👉 END: $finishedEnd');
-
-        finished.add(
-          _SubjectScheduleState(subject: subject, time: finishedEnd),
-        );
-      } else {
-        debugPrint('   👉 GROUP: NO SCHEDULE');
-        noSchedule.add(subject);
+      // Upcoming class
+      if (bestUpcoming == null ||
+          start.isBefore(bestUpcoming)) {
+        bestUpcoming = start;
       }
     }
 
-    // ============================================================
-    // SORT EACH GROUP
-    // ============================================================
-
-    currentlyActive.sort((a, b) => a.time.compareTo(b.time));
-
-    upcoming.sort((a, b) => a.time.compareTo(b.time));
-
-    finished.sort((a, b) => b.time.compareTo(a.time));
-
-    noSchedule.sort(
-      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-    );
-
-    // ============================================================
-    // FINAL ORDER
-    // ============================================================
-
-    final result = [
-      ...currentlyActive.map((item) => item.subject),
-      ...upcoming.map((item) => item.subject),
-      ...finished.map((item) => item.subject),
-      ...noSchedule,
-    ];
-
-    debugPrint('');
-    debugPrint('══════════════════════════════════════════════════════');
-    debugPrint('🏁 FINAL SUBJECT ORDER');
-    debugPrint('══════════════════════════════════════════════════════');
-
-    for (var i = 0; i < result.length; i++) {
-      final subject = result[i];
-
-      String group = 'UNKNOWN';
-
-      if (currentlyActive.any((x) => x.subject.id == subject.id)) {
-        group = 'CURRENT';
-      } else if (upcoming.any((x) => x.subject.id == subject.id)) {
-        group = 'UPCOMING';
-      } else if (finished.any((x) => x.subject.id == subject.id)) {
-        group = 'FINISHED';
-      } else if (noSchedule.any((x) => x.id == subject.id)) {
-        group = 'NO SCHEDULE';
-      }
-
-      debugPrint(
-        '${i + 1}. ${subject.name} '
-        '(id=${subject.id}) → $group',
+    if (isActiveNow && activeEnd != null) {
+      currentlyActive.add(
+        _SubjectScheduleState(
+          subject: subject,
+          time: activeEnd,
+        ),
+      );
+    } else if (bestUpcoming != null) {
+      upcoming.add(
+        _SubjectScheduleState(
+          subject: subject,
+          time: bestUpcoming,
+        ),
       );
     }
-
-    debugPrint('══════════════════════════════════════════════════════');
-    debugPrint('');
-
-    return result;
   }
 
+  // Currently running first
+  currentlyActive.sort(
+    (a, b) => a.time.compareTo(b.time),
+  );
+
+  // Then upcoming
+  upcoming.sort(
+    (a, b) => a.time.compareTo(b.time),
+  );
+
+  return [
+    ...currentlyActive.map((e) => e.subject),
+    ...upcoming.map((e) => e.subject),
+  ];
+}
   /// "Now" if the subject has a class in progress right now, a formatted
   /// start time (e.g. "2:30 PM") if it has one coming up later today,
   /// or null if nothing's scheduled today.
@@ -740,7 +639,6 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
     final theme = Theme.of(context);
 
     final colorScheme = theme.colorScheme;

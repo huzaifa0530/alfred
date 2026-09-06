@@ -42,12 +42,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isSending = false;
 
-
-
   bool _isRecording = false;
   Duration _recordingDuration = Duration.zero;
   Timer? _recordingTimer;
-
 
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -474,6 +471,36 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
         _searchQuery = _searchController.text.trim();
       });
     });
+    _retrieveLostImage();
+  }
+
+  Future<void> _retrieveLostImage() async {
+    try {
+      final LostDataResponse response = await _imagePicker.retrieveLostData();
+
+      if (response.isEmpty) {
+        return;
+      }
+
+      if (response.files != null && response.files!.isNotEmpty) {
+        if (!mounted) return;
+
+        setState(() {
+          _pendingAttachments.addAll(
+            response.files!.map((xFile) => File(xFile.path)),
+          );
+        });
+
+        debugPrint('LOST IMAGE RECOVERED: ${response.files!.length} file(s)');
+      }
+
+      if (response.exception != null) {
+        debugPrint('LOST IMAGE ERROR: ${response.exception}');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('RETRIEVE LOST IMAGE ERROR: $e');
+      debugPrintStack(stackTrace: stackTrace);
+    }
   }
 
   @override

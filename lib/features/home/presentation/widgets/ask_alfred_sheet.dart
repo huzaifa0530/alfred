@@ -959,22 +959,22 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
           onTimeout: () => throw StateError('Could not read events in time.'),
         );
 
-    print('EVENTS DEBUG: found ${events.length} events for ${subject.name}');
+    debugPrint('EVENTS DEBUG: found ${events.length} events for ${subject.name}');
     for (final e in events) {
-      print('  - "${e.title}" completed=${e.isCompleted}');
+      debugPrint('  - "${e.title}" completed=${e.isCompleted}');
     }
 
     final titleMatch = intent.fields['titleMatch'] as String?;
-    print('EVENTS DEBUG: titleMatch = "$titleMatch"');
+    debugPrint('EVENTS DEBUG: titleMatch = "$titleMatch"');
 
     final match = _matchByText(events, titleMatch, (e) => e.title);
 
     if (match == null) {
-      print('EVENTS DEBUG: NO MATCH FOUND');
+      debugPrint('EVENTS DEBUG: NO MATCH FOUND');
       throw StateError('Could not find a matching event.');
     }
 
-    print(
+    debugPrint(
       'EVENTS DEBUG: matched "${match.title}", currently completed=${match.isCompleted}',
     );
 
@@ -984,7 +984,7 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
     }
 
     final newCompleted = _asBool(intent.fields['isCompleted']);
-    print('EVENTS DEBUG: newCompleted value = $newCompleted');
+    debugPrint('EVENTS DEBUG: newCompleted value = $newCompleted');
 
     final updated = match.copyWith(
       title: intent.fields['title'] as String?,
@@ -996,10 +996,10 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
       updatedAt: DateTime.now(),
     );
 
-    print('EVENTS DEBUG: after copyWith, isCompleted=${updated.isCompleted}');
+    debugPrint('EVENTS DEBUG: after copyWith, isCompleted=${updated.isCompleted}');
 
     await ref.read(updateEventProvider)(updated);
-    print('EVENTS DEBUG: update call completed');
+    debugPrint('EVENTS DEBUG: update call completed');
   }
   // ---------------- Marks ----------------
 

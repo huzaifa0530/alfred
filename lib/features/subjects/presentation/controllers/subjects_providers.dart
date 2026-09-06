@@ -1,3 +1,4 @@
+import 'package:alfred/core/storage/storage_providers.dart';
 import 'package:alfred/features/subjects/domain/repositories/subjects_repository_impl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -59,5 +60,6 @@ final updateSubjectProvider = Provider<UpdateSubject>((ref) {
 final deleteSubjectProvider = Provider<DeleteSubject>((ref) {
   return DeleteSubject(
     ref.watch(subjectsRepositoryProvider),
+    ref.watch(fileStorageServiceProvider),
   );
 });

@@ -32,6 +32,7 @@ class SubjectTile extends StatelessWidget {
             vertical: AppDimensions.space12,
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               _SubjectAvatar(
                 initials: initials,
@@ -46,24 +47,41 @@ class SubjectTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      subject.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.headingSmall,
+                    // Subject name + course code
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            subject.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.headingSmall,
+                          ),
+                        ),
+
+                        if (subject.code != null &&
+                            subject.code!.trim().isNotEmpty) ...[
+                          const SizedBox(width: 8),
+
+                          _CourseCodeBadge(
+                            code: subject.code!,
+                          ),
+                        ],
+                      ],
                     ),
 
                     const SizedBox(
-                      height: AppDimensions.space4,
+                      height: AppDimensions.space8,
                     ),
 
-                    _buildSubtitle(),
+                    _buildMetadata(),
                   ],
                 ),
               ),
 
               const SizedBox(
-                width: AppDimensions.space12,
+                width: AppDimensions.space8,
               ),
 
               const Icon(
@@ -78,25 +96,39 @@ class SubjectTile extends StatelessWidget {
     );
   }
 
-  Widget _buildSubtitle() {
-    final details = <String>[
-      if (subject.code != null) subject.code!,
-      if (subject.instructor != null) subject.instructor!,
-      if (subject.room != null) 'Room ${subject.room!}',
-    ];
+  Widget _buildMetadata() {
+    final instructor = subject.instructor?.trim();
+    final room = subject.room?.trim();
 
-    if (details.isEmpty) {
+    final hasInstructor =
+        instructor != null && instructor.isNotEmpty;
+
+    final hasRoom =
+        room != null && room.isNotEmpty;
+
+    if (!hasInstructor && !hasRoom) {
       return const Text(
         'No additional information',
         style: AppTextStyles.bodySmall,
       );
     }
 
-    return Text(
-      details.join(' · '),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: AppTextStyles.bodyMedium,
+    return Wrap(
+      spacing: 14,
+      runSpacing: 6,
+      children: [
+        if (hasInstructor)
+          _MetadataItem(
+            icon: Icons.person_outline_rounded,
+            text: instructor!,
+          ),
+
+        if (hasRoom)
+          _MetadataItem(
+            icon: Icons.location_on_outlined,
+            text: 'Room $room',
+          ),
+      ],
     );
   }
 
@@ -139,6 +171,81 @@ class SubjectTile extends StatelessWidget {
     } catch (_) {
       return AppColors.primary;
     }
+  }
+}
+
+class _MetadataItem extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _MetadataItem({
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxWidth: 240,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              icon,
+              size: 15,
+              color: AppColors.textMuted,
+            ),
+          ),
+
+          const SizedBox(width: 5),
+
+          Flexible(
+            child: Text(
+              text,
+              softWrap: true,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CourseCodeBadge extends StatelessWidget {
+  final String code;
+
+  const _CourseCodeBadge({
+    required this.code,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        code,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTextStyles.labelSmall.copyWith(
+          color: AppColors.textMuted,
+        ),
+      ),
+    );
   }
 }
 

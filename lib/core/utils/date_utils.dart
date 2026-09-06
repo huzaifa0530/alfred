@@ -14,3 +14,20 @@ DateTime dateForWeekday(int weekday) {
 }
 
 
+/// Parses a "HH:mm" (24-hour) string and returns a 12-hour display string
+/// like "2:30 PM". Safe to call even if the value is already oddly formatted.
+String formatTimeOfDayString(String rawTime) {
+  final parts = rawTime.split(':');
+  if (parts.length < 2) return rawTime; // fallback, don't crash on bad data
+
+  final hour24 = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1].split(' ').first); // strips any trailing AM/PM if present
+  if (hour24 == null || minute == null) return rawTime;
+
+  final period = hour24 >= 12 ? 'PM' : 'AM';
+  var hour12 = hour24 % 12;
+  if (hour12 == 0) hour12 = 12;
+
+  final minuteStr = minute.toString().padLeft(2, '0');
+  return '$hour12:$minuteStr $period';
+}

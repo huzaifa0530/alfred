@@ -1,5 +1,6 @@
 import 'package:alfred/features/attendance/presentation/screens/attendance_screen.dart';
 import 'package:alfred/features/events/presentation/screens/create_event_screen.dart';
+import 'package:alfred/features/events/presentation/screens/event_detail_screen.dart';
 import 'package:alfred/features/events/presentation/screens/events_screen.dart';
 import 'package:alfred/features/home/presentation/screens/home_screen.dart';
 import 'package:alfred/features/marks/presentation/screens/marks_screen.dart';
@@ -12,6 +13,7 @@ import 'package:alfred/features/timetable/presentation/screens/timetable_screen.
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/events/domain/entities/event.dart';
 import '../navigation/main_shell.dart';
 import 'route_names.dart';
 
@@ -168,11 +170,38 @@ class AppRouter {
       // ==========================================================
       // CREATE EVENT
       // ==========================================================
+      // ==========================================================
+      // CREATE EVENT
+      // ==========================================================
       GoRoute(
         path: '${RouteNames.events}/create',
         name: 'create-event',
         builder: (context, state) {
-          return const CreateEventScreen();
+          return const EventFormScreen();
+        },
+      ),
+
+      // ==========================================================
+      // EVENT DETAIL
+      // ==========================================================
+      GoRoute(
+        path: '${RouteNames.events}/:eventId',
+        name: 'event-detail',
+        builder: (context, state) {
+          final eventId = int.parse(state.pathParameters['eventId']!);
+          return EventDetailScreen(eventId: eventId);
+        },
+      ),
+
+      // ==========================================================
+      // EDIT EVENT
+      // ==========================================================
+      GoRoute(
+        path: '${RouteNames.events}/:eventId/edit',
+        name: 'edit-event',
+        builder: (context, state) {
+          final event = state.extra as Event?;
+          return EventFormScreen(event: event);
         },
       ),
 

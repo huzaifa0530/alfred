@@ -2,7 +2,6 @@ import 'package:alfred/app/theme/app_text_styles.dart';
 import 'package:flutter/material.dart';
 
 import '../../../subjects/domain/entities/subject.dart';
-
 class RecentSubjectCard extends StatelessWidget {
   final Subject subject;
   final VoidCallback? onTap;

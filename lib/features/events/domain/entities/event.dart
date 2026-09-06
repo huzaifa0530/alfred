@@ -1,3 +1,9 @@
+class _Unset {
+  const _Unset();
+}
+
+const _unset = _Unset();
+
 class Event {
   final int id;
   final int? subjectId;
@@ -37,11 +43,11 @@ class Event {
         dueDate.isAfter(DateTime.now());
   }
 
-  Event copyWith({
+ Event copyWith({
     int? id,
-    int? subjectId,
+    Object? subjectId = _unset,
     String? title,
-    String? description,
+    Object? description = _unset,
     String? type,
     String? priority,
     DateTime? dueDate,
@@ -51,19 +57,19 @@ class Event {
   }) {
     return Event(
       id: id ?? this.id,
-      subjectId: subjectId ?? this.subjectId,
+      subjectId: identical(subjectId, _unset)
+          ? this.subjectId
+          : subjectId as int?,
       title: title ?? this.title,
-      description:
-          description ?? this.description,
+      description: identical(description, _unset)
+          ? this.description
+          : description as String?,
       type: type ?? this.type,
       priority: priority ?? this.priority,
       dueDate: dueDate ?? this.dueDate,
-      isCompleted:
-          isCompleted ?? this.isCompleted,
-      createdAt:
-          createdAt ?? this.createdAt,
-      updatedAt:
-          updatedAt ?? this.updatedAt,
+      isCompleted: isCompleted ?? this.isCompleted,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

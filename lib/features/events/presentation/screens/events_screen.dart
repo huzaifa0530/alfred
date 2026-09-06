@@ -22,7 +22,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
   }
 
   Future<void> _loadManualOrder() async {
-    debugPrint('📥 Loading manual order...');
+    debugPrint(' Loading manual order...');
 
     final order = await ref.read(eventOrderStorageProvider).getOrder();
 
@@ -86,6 +86,18 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
     debugPrint('🔀 APPLY RESULT = ${ordered.map(getId).toList()}');
 
     return ordered;
+  }
+
+  Future<void> _deleteEvent(dynamic event) async {
+    try {
+      await ref.read(deleteEventProvider).call(event.id);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not delete event: $e')));
+    }
   }
 
   @override
@@ -259,6 +271,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
           events: _applyManualOrder(overdue, (e) => e.id),
           onCompletedChanged: _markCompleted,
           onManualReorder: _handleManualReorder,
+          onDelete: _deleteEvent,
         ),
 
       if (today.isNotEmpty)
@@ -267,6 +280,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
           events: _applyManualOrder(today, (e) => e.id),
           onCompletedChanged: _markCompleted,
           onManualReorder: _handleManualReorder,
+          onDelete: _deleteEvent,
         ),
 
       if (tomorrow.isNotEmpty)
@@ -275,6 +289,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
           events: _applyManualOrder(tomorrow, (e) => e.id),
           onCompletedChanged: _markCompleted,
           onManualReorder: _handleManualReorder,
+          onDelete: _deleteEvent,
         ),
 
       if (thisWeek.isNotEmpty)
@@ -283,6 +298,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
           events: _applyManualOrder(thisWeek, (e) => e.id),
           onCompletedChanged: _markCompleted,
           onManualReorder: _handleManualReorder,
+          onDelete: _deleteEvent,
         ),
 
       if (later.isNotEmpty)
@@ -291,6 +307,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
           events: _applyManualOrder(later, (e) => e.id),
           onCompletedChanged: _markCompleted,
           onManualReorder: _handleManualReorder,
+          onDelete: _deleteEvent,
         ),
     ];
   }
@@ -439,13 +456,38 @@ class _EventGroup extends StatelessWidget {
   final List events;
   final Future<void> Function(dynamic, bool)? onCompletedChanged;
   final Future<void> Function(List<dynamic>)? onManualReorder;
+  final Future<void> Function(dynamic)? onDelete;
 
   const _EventGroup({
     required this.title,
     required this.events,
     this.onCompletedChanged,
     this.onManualReorder,
+    this.onDelete,
   });
+
+  Future<bool> _confirmDelete(BuildContext context, dynamic event) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete event?'),
+        content: Text('"${event.title}" will be permanently removed.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    return confirmed ?? false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -495,18 +537,7 @@ class _EventGroup extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             buildDefaultDragHandles: false,
             onReorder: (oldIndex, newIndex) {
-              debugPrint('');
-              debugPrint('🟡 FLUTTER REORDER CALLBACK');
-              debugPrint('🟡 oldIndex = $oldIndex');
-              debugPrint('🟡 newIndex = $newIndex');
-              debugPrint(
-                '🟡 current IDs = ${events.map((e) => e.id).toList()}',
-              );
-
-              if (onManualReorder == null) {
-                debugPrint('❌ onManualReorder is NULL');
-                return;
-              }
+              if (onManualReorder == null) return;
 
               final reordered = List<dynamic>.from(events);
 
@@ -517,24 +548,51 @@ class _EventGroup extends StatelessWidget {
               final item = reordered.removeAt(oldIndex);
               reordered.insert(newIndex, item);
 
-              debugPrint(
-                '🟢 AFTER DRAG = ${reordered.map((e) => e.id).toList()}',
-              );
-
               onManualReorder!(reordered);
             },
             children: [
               for (final event in events)
-                Padding(
+                Dismissible(
                   key: ValueKey('event-${event.id}'),
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: ReorderableDragStartListener(
-                    index: events.indexOf(event),
-                    child: EventCard(
-                      event: event,
-                      onCompletedChanged: onCompletedChanged == null
-                          ? null
-                          : (value) => onCompletedChanged!(event, value),
+                  direction: DismissDirection.startToEnd,
+                  confirmDismiss: (_) => _confirmDelete(context, event),
+                  onDismissed: (_) => onDelete?.call(event),
+                  background: Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    alignment: Alignment.centerLeft,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.delete_outline_rounded,
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Delete',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onErrorContainer,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: ReorderableDelayedDragStartListener(
+                      index: events.indexOf(event),
+                      child: EventCard(
+                        event: event,
+                        onTap: () => context.push('/events/${event.id}'),
+                        onCompletedChanged: onCompletedChanged == null
+                            ? null
+                            : (value) => onCompletedChanged!(event, value),
+                      ),
                     ),
                   ),
                 ),
@@ -545,7 +603,6 @@ class _EventGroup extends StatelessWidget {
     );
   }
 }
-
 class _EmptyEvents extends StatelessWidget {
   const _EmptyEvents();
 

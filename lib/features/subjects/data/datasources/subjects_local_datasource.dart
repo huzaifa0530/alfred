@@ -45,7 +45,7 @@ class SubjectsLocalDataSource {
     );
   }
 
-  Future<int> deleteSubject(int id) {
+  Future<List<String>> deleteSubject(int id) {
     return _dao.deleteSubject(id);
   }
 }

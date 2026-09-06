@@ -94,3 +94,17 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 final manualEventOrderProvider = FutureProvider<List<int>>((ref) {
   return ref.read(eventOrderStorageProvider).getOrder();
 });
+
+final eventByIdProvider = Provider.family<Event?, int>((ref, id) {
+  final eventsAsync = ref.watch(allEventsProvider);
+
+  return eventsAsync.maybeWhen(
+    data: (events) {
+      for (final event in events) {
+        if (event.id == id) return event;
+      }
+      return null;
+    },
+    orElse: () => null,
+  );
+});

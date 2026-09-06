@@ -19,6 +19,7 @@ import '../../domain/entities/subject.dart';
 import '../controllers/subjects_providers.dart';
 import 'package:go_router/go_router.dart';
 import 'package:alfred/app/router/route_names.dart';
+
 class SubjectDetailsScreen extends ConsumerWidget {
   final int subjectId;
 
@@ -470,7 +471,7 @@ class _SubjectDetailsContentState
           title: 'Attendance',
           subtitle: 'Track your classes and attendance',
           onTap: () {
-            context.push(RouteNames.attendance);
+            context.go(RouteNames.attendance);
           },
         ),
 
@@ -479,7 +480,8 @@ class _SubjectDetailsContentState
           title: 'Marks',
           subtitle: 'Quizzes, assignments, labs and exams',
           onTap: () {
-            context.push(RouteNames.marks);
+                context.go(RouteNames.marks);
+
           },
         ),
       ],

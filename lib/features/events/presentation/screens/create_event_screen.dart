@@ -6,20 +6,23 @@ import '../../../subjects/presentation/controllers/subjects_controller.dart';
 import '../../domain/entities/event.dart';
 import '../controllers/events_providers.dart';
 
-class CreateEventScreen extends ConsumerStatefulWidget {
-  const CreateEventScreen({super.key});
+class EventFormScreen extends ConsumerStatefulWidget {
+  /// Pass an existing event to edit it. Leave null to create a new one.
+  final Event? event;
+
+  const EventFormScreen({super.key, this.event});
 
   @override
-  ConsumerState<CreateEventScreen> createState() =>
-      _CreateEventScreenState();
+  ConsumerState<EventFormScreen> createState() => _EventFormScreenState();
 }
 
-class _CreateEventScreenState
-    extends ConsumerState<CreateEventScreen> {
+class _EventFormScreenState extends ConsumerState<EventFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  late final _titleController =
+      TextEditingController(text: widget.event?.title ?? '');
+  late final _descriptionController =
+      TextEditingController(text: widget.event?.description ?? '');
 
   int? _subjectId;
 
@@ -30,6 +33,8 @@ class _CreateEventScreenState
   TimeOfDay _selectedTime = TimeOfDay.now();
 
   bool _isSaving = false;
+
+  bool get _isEditing => widget.event != null;
 
   final List<String> _eventTypes = const [
     'quiz',
@@ -45,6 +50,21 @@ class _CreateEventScreenState
     'normal',
     'high',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    final event = widget.event;
+
+    if (event != null) {
+      _subjectId = event.subjectId;
+      _selectedType = event.type;
+      _selectedPriority = event.priority;
+      _selectedDate = event.dueDate;
+      _selectedTime = TimeOfDay.fromDateTime(event.dueDate);
+    }
+  }
 
   @override
   void dispose() {
@@ -91,7 +111,7 @@ class _CreateEventScreenState
     );
   }
 
-  Future<void> _createEvent() async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_isSaving) return;
@@ -103,24 +123,38 @@ class _CreateEventScreenState
     try {
       final now = DateTime.now();
 
-      final event = Event(
-        id: 0,
-        subjectId: _subjectId,
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty
-            ? null
-            : _descriptionController.text.trim(),
-        type: _selectedType,
-        priority: _selectedPriority,
-        dueDate: _getDueDateTime(),
-        isCompleted: false,
-        createdAt: now,
-        updatedAt: now,
-      );
+      final trimmedDescription = _descriptionController.text.trim();
 
-      await ref
-          .read(eventsRepositoryProvider)
-          .createEvent(event);
+      if (_isEditing) {
+        final updated = widget.event!.copyWith(
+          subjectId: _subjectId,
+          title: _titleController.text.trim(),
+          description:
+              trimmedDescription.isEmpty ? null : trimmedDescription,
+          type: _selectedType,
+          priority: _selectedPriority,
+          dueDate: _getDueDateTime(),
+          updatedAt: now,
+        );
+
+        await ref.read(updateEventProvider).call(updated);
+      } else {
+        final event = Event(
+          id: 0,
+          subjectId: _subjectId,
+          title: _titleController.text.trim(),
+          description:
+              trimmedDescription.isEmpty ? null : trimmedDescription,
+          type: _selectedType,
+          priority: _selectedPriority,
+          dueDate: _getDueDateTime(),
+          isCompleted: false,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await ref.read(createEventProvider).call(event);
+      }
 
       if (!mounted) return;
 
@@ -131,7 +165,7 @@ class _CreateEventScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Could not create event: $error',
+            'Could not save event: $error',
           ),
         ),
       );
@@ -150,34 +184,17 @@ class _CreateEventScreenState
 
   String _formatDate(DateTime date) {
     const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
 
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   String _formatTime(TimeOfDay time) {
-    final hour = time.hourOfPeriod == 0
-        ? 12
-        : time.hourOfPeriod;
-
-    final minute =
-        time.minute.toString().padLeft(2, '0');
-
-    final period =
-        time.period == DayPeriod.am ? 'AM' : 'PM';
-
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
     return '$hour:$minute $period';
   }
 
@@ -187,43 +204,26 @@ class _CreateEventScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Event'),
+        title: Text(_isEditing ? 'Edit Event' : 'New Event'),
         centerTitle: false,
       ),
       body: SafeArea(
         child: subjectsAsync.when(
-          loading: () =>
-              const Center(
-            child: CircularProgressIndicator(),
-          ),
-          error: (_, __) => _buildContent(
-            context,
-            const [],
-          ),
-          data: (subjects) => _buildContent(
-            context,
-            subjects,
-          ),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, __) => _buildContent(context, const []),
+          data: (subjects) => _buildContent(context, subjects),
         ),
       ),
     );
   }
 
-  Widget _buildContent(
-    BuildContext context,
-    List<Subject> subjects,
-  ) {
+  Widget _buildContent(BuildContext context, List<Subject> subjects) {
     final theme = Theme.of(context);
 
     return Form(
       key: _formKey,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          20,
-          8,
-          20,
-          32,
-        ),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
           Text(
             'What do you need to do?',
@@ -236,17 +236,14 @@ class _CreateEventScreenState
 
           TextFormField(
             controller: _titleController,
-            textCapitalization:
-                TextCapitalization.sentences,
+            textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(
               hintText: 'e.g. Assignment 3',
             ),
             validator: (value) {
-              if (value == null ||
-                  value.trim().isEmpty) {
+              if (value == null || value.trim().isEmpty) {
                 return 'Enter an event title';
               }
-
               return null;
             },
           ),
@@ -261,13 +258,10 @@ class _CreateEventScreenState
             spacing: 8,
             runSpacing: 8,
             children: _eventTypes.map((type) {
-              final selected =
-                  _selectedType == type;
+              final selected = _selectedType == type;
 
               return ChoiceChip(
-                label: Text(
-                  _capitalize(type),
-                ),
+                label: Text(_capitalize(type)),
                 selected: selected,
                 onSelected: (_) {
                   setState(() {
@@ -305,21 +299,15 @@ class _CreateEventScreenState
               Expanded(
                 child: _SelectorButton(
                   icon: Icons.calendar_today_outlined,
-                  label: _formatDate(
-                    _selectedDate,
-                  ),
+                  label: _formatDate(_selectedDate),
                   onTap: _pickDate,
                 ),
               ),
-
               const SizedBox(width: 10),
-
               Expanded(
                 child: _SelectorButton(
                   icon: Icons.schedule_outlined,
-                  label: _formatTime(
-                    _selectedTime,
-                  ),
+                  label: _formatTime(_selectedTime),
                   onTap: _pickTime,
                 ),
               ),
@@ -334,33 +322,25 @@ class _CreateEventScreenState
 
           Row(
             children: _priorities.map((priority) {
-              final selected =
-                  _selectedPriority ==
-                      priority;
+              final selected = _selectedPriority == priority;
 
               return Expanded(
                 child: Padding(
-                  padding:
-                      EdgeInsets.only(
-                    right: priority !=
-                            _priorities.last
-                        ? 8
-                        : 0,
+                  padding: EdgeInsets.only(
+                    right: priority != _priorities.last ? 8 : 0,
                   ),
                   child: ChoiceChip(
                     label: SizedBox(
                       width: double.infinity,
                       child: Text(
                         _capitalize(priority),
-                        textAlign:
-                            TextAlign.center,
+                        textAlign: TextAlign.center,
                       ),
                     ),
                     selected: selected,
                     onSelected: (_) {
                       setState(() {
-                        _selectedPriority =
-                            priority;
+                        _selectedPriority = priority;
                       });
                     },
                   ),
@@ -379,8 +359,7 @@ class _CreateEventScreenState
             controller: _descriptionController,
             minLines: 4,
             maxLines: 6,
-            textCapitalization:
-                TextCapitalization.sentences,
+            textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(
               hintText: 'Add details...',
               alignLabelWithHint: true,
@@ -390,25 +369,17 @@ class _CreateEventScreenState
           const SizedBox(height: 32),
 
           FilledButton(
-            onPressed: _isSaving
-                ? null
-                : _createEvent,
+            onPressed: _isSaving ? null : _submit,
             style: FilledButton.styleFrom(
-              minimumSize:
-                  const Size.fromHeight(54),
+              minimumSize: const Size.fromHeight(54),
             ),
             child: _isSaving
                 ? const SizedBox(
                     width: 22,
                     height: 22,
-                    child:
-                        CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text(
-                    'Create Event',
-                  ),
+                : Text(_isEditing ? 'Save Changes' : 'Create Event'),
           ),
         ],
       ),
@@ -416,26 +387,19 @@ class _CreateEventScreenState
   }
 }
 
+// Keep these three private widgets exactly as they were in create_event_screen.dart
 class _SectionLabel extends StatelessWidget {
   final String label;
-
-  const _SectionLabel({
-    required this.label,
-  });
+  const _SectionLabel({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: Theme.of(context)
-          .textTheme
-          .labelSmall
-          ?.copyWith(
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
             fontWeight: FontWeight.w800,
             letterSpacing: 1.1,
-            color: Theme.of(context)
-                .colorScheme
-                .onSurfaceVariant,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
     );
   }
@@ -457,34 +421,22 @@ class _SelectorButton extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Material(
-      color:
-          theme.colorScheme.surfaceContainerHighest,
+      color: theme.colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 16,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
           child: Row(
             children: [
-              Icon(
-                icon,
-                size: 18,
-                color:
-                    theme.colorScheme.onSurfaceVariant,
-              ),
+              Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   label,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -511,22 +463,16 @@ class _SubjectSelector extends StatelessWidget {
     return DropdownButtonFormField<int?>(
       value: selectedSubjectId,
       isExpanded: true,
-      decoration: const InputDecoration(
-        hintText: 'General / No subject',
-      ),
+      decoration: const InputDecoration(hintText: 'General / No subject'),
       items: [
         const DropdownMenuItem<int?>(
           value: null,
           child: Text('General / No subject'),
         ),
         ...subjects.map(
-          (subject) =>
-              DropdownMenuItem<int?>(
+          (subject) => DropdownMenuItem<int?>(
             value: subject.id,
-            child: Text(
-              subject.name,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(subject.name, overflow: TextOverflow.ellipsis),
           ),
         ),
       ],
@@ -534,3 +480,122 @@ class _SubjectSelector extends StatelessWidget {
     );
   }
 }
+// _SectionLabel, _SelectorButton, _SubjectSelector stay exactly as in your original file.
+// class _SectionLabel extends StatelessWidget {
+//   final String label;
+
+//   const _SectionLabel({
+//     required this.label,
+//   });
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Text(
+//       label,
+//       style: Theme.of(context)
+//           .textTheme
+//           .labelSmall
+//           ?.copyWith(
+//             fontWeight: FontWeight.w800,
+//             letterSpacing: 1.1,
+//             color: Theme.of(context)
+//                 .colorScheme
+//                 .onSurfaceVariant,
+//           ),
+//     );
+//   }
+// }
+
+// class _SelectorButton extends StatelessWidget {
+//   final IconData icon;
+//   final String label;
+//   final VoidCallback onTap;
+
+//   const _SelectorButton({
+//     required this.icon,
+//     required this.label,
+//     required this.onTap,
+//   });
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final theme = Theme.of(context);
+
+//     return Material(
+//       color:
+//           theme.colorScheme.surfaceContainerHighest,
+//       borderRadius: BorderRadius.circular(16),
+//       child: InkWell(
+//         onTap: onTap,
+//         borderRadius: BorderRadius.circular(16),
+//         child: Padding(
+//           padding: const EdgeInsets.symmetric(
+//             horizontal: 14,
+//             vertical: 16,
+//           ),
+//           child: Row(
+//             children: [
+//               Icon(
+//                 icon,
+//                 size: 18,
+//                 color:
+//                     theme.colorScheme.onSurfaceVariant,
+//               ),
+//               const SizedBox(width: 10),
+//               Expanded(
+//                 child: Text(
+//                   label,
+//                   overflow:
+//                       TextOverflow.ellipsis,
+//                   style: const TextStyle(
+//                     fontWeight: FontWeight.w600,
+//                   ),
+//                 ),
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
+
+//  class _SubjectSelector extends StatelessWidget {
+//   final List<Subject> subjects;
+//   final int? selectedSubjectId;
+//   final ValueChanged<int?> onChanged;
+
+//   const _SubjectSelector({
+//     required this.subjects,
+//     required this.selectedSubjectId,
+//     required this.onChanged,
+//   });
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return DropdownButtonFormField<int?>(
+//       value: selectedSubjectId,
+//       isExpanded: true,
+//       decoration: const InputDecoration(
+//         hintText: 'General / No subject',
+//       ),
+//       items: [
+//         const DropdownMenuItem<int?>(
+//           value: null,
+//           child: Text('General / No subject'),
+//         ),
+//         ...subjects.map(
+//           (subject) =>
+//               DropdownMenuItem<int?>(
+//             value: subject.id,
+//             child: Text(
+//               subject.name,
+//               overflow: TextOverflow.ellipsis,
+//             ),
+//           ),
+//         ),
+//       ],
+//       onChanged: onChanged,
+//     );
+//   }
+// }

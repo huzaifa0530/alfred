@@ -10,6 +10,5 @@ abstract interface class SubjectsRepository {
   Future<int> createSubject(Subject subject);
 
   Future<bool> updateSubject(Subject subject);
-
-  Future<void> deleteSubject(int id);
+  Future<List<String>> deleteSubject(int id);
 }

@@ -1,4 +1,5 @@
 import 'package:alfred/features/timetable/presentation/controllers/timetable_providers.dart';
+import 'package:alfred/features/timetable/presentation/screens/subject_attendance_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -234,7 +235,11 @@ class _SubjectAttendanceCard extends ConsumerWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: () {
-          // Subject attendance history comes next.
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => SubjectAttendanceDetailScreen(subject: subject),
+            ),
+          );
         },
         child: Padding(
           padding: const EdgeInsets.all(18),

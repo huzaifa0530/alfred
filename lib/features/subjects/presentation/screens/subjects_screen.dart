@@ -1,11 +1,13 @@
 import 'package:alfred/features/subjects/presentation/screens/add_subject_screen.dart';
 import 'package:alfred/features/subjects/presentation/screens/subject_details_screen.dart';
+import 'package:alfred/features/timetable/presentation/controllers/timetable_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_text_styles.dart';
+import '../../../timetable/domain/entities/class_schedule.dart';
 import '../../domain/entities/subject.dart';
 import '../controllers/subjects_controller.dart';
 import '../widgets/subject_empty_state.dart';
@@ -98,10 +100,91 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
     );
   }
 
+  List<Subject> _sortSubjectsByTimetable(
+    List<Subject> subjects,
+    List<ClassSchedule> schedules,
+  ) {
+    final now = DateTime.now();
+
+    DateTime combineDateAndTime(DateTime date, String hhmm) {
+      final parts = hhmm.split(':');
+
+      final hour = int.tryParse(parts.isNotEmpty ? parts[0] : '') ?? 0;
+
+      final minute = int.tryParse(parts.length > 1 ? parts[1] : '') ?? 0;
+
+      return DateTime(date.year, date.month, date.day, hour, minute);
+    }
+
+    final schedulesBySubject = <int, List<ClassSchedule>>{};
+
+    for (final schedule in schedules) {
+      schedulesBySubject
+          .putIfAbsent(schedule.subjectId, () => [])
+          .add(schedule);
+    }
+
+    final withTimetable = <_SubjectTimetableOrder>[];
+    final withoutTimetable = <Subject>[];
+
+    for (final subject in subjects) {
+      final subjectSchedules = schedulesBySubject[subject.id];
+
+      if (subjectSchedules == null || subjectSchedules.isEmpty) {
+        withoutTimetable.add(subject);
+        continue;
+      }
+
+      DateTime? nextOccurrence;
+
+      for (final schedule in subjectSchedules) {
+        int daysUntil = (schedule.weekday - now.weekday) % 7;
+
+        if (daysUntil < 0) {
+          daysUntil += 7;
+        }
+
+        final classDate = now.add(Duration(days: daysUntil));
+
+        final start = combineDateAndTime(classDate, schedule.startTime);
+
+        /*
+       * If today's class has already finished,
+       * move it to next week's occurrence.
+       */
+        if (daysUntil == 0 && !start.isAfter(now)) {
+          final nextWeek = start.add(const Duration(days: 7));
+
+          if (nextOccurrence == null || nextWeek.isBefore(nextOccurrence)) {
+            nextOccurrence = nextWeek;
+          }
+        } else {
+          if (nextOccurrence == null || start.isBefore(nextOccurrence)) {
+            nextOccurrence = start;
+          }
+        }
+      }
+
+      if (nextOccurrence != null) {
+        withTimetable.add(
+          _SubjectTimetableOrder(subject: subject, nextClass: nextOccurrence),
+        );
+      } else {
+        withoutTimetable.add(subject);
+      }
+    }
+
+    // Classes ordered by their next occurrence.
+    withTimetable.sort((a, b) => a.nextClass.compareTo(b.nextClass));
+
+    // Subjects without timetable stay at the bottom.
+    return [...withTimetable.map((e) => e.subject), ...withoutTimetable];
+  }
+
   @override
   Widget build(BuildContext context) {
     final subjectsAsync = ref.watch(subjectsControllerProvider);
-
+    final allTimetableAsync = ref.watch(allTimetableProvider);
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
@@ -126,51 +209,21 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
               data: (subjects) {
                 final filteredSubjects = _filterSubjects(subjects);
 
-                if (filteredSubjects.isEmpty) {
-                  return SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _searchQuery.isEmpty
-                        ? SubjectEmptyState(onAddSubject: _onAddSubject)
-                        : const Center(
-                            child: Text(
-                              'No subjects found',
-                              style: AppTextStyles.bodyMedium,
-                            ),
-                          ),
-                  );
-                }
-                return SliverPadding(
-                  padding: const EdgeInsets.only(
-                    left: AppDimensions.space8,
-                    right: AppDimensions.space8,
-                    bottom: AppDimensions.space32,
-                  ),
-                  sliver: SliverList.separated(
-                    itemCount: filteredSubjects.length,
-                    separatorBuilder: (_, __) {
-                      return const Divider(indent: 76, endIndent: 8);
-                    },
-                    itemBuilder: (context, index) {
-                      final subject = filteredSubjects[index];
+                return allTimetableAsync.when(
+                  loading: () {
+                    return _buildSubjectsList(filteredSubjects);
+                  },
+                  error: (_, __) {
+                    return _buildSubjectsList(filteredSubjects);
+                  },
+                  data: (schedules) {
+                    final sortedSubjects = _sortSubjectsByTimetable(
+                      filteredSubjects,
+                      schedules,
+                    );
 
-                      return Dismissible(
-                        key: ValueKey('subject-${subject.id}'),
-                        direction: DismissDirection.startToEnd,
-                        background: _buildDeleteBackground(),
-                        confirmDismiss: (_) => _confirmDeleteSubject(subject),
-                        onDismissed: (_) => _deleteSubject(subject),
-                        child: GestureDetector(
-                          onLongPress: () => _onEditSubject(subject),
-                          child: SubjectTile(
-                            subject: subject,
-                            onTap: () {
-                              _onSubjectTap(subject.id);
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                    return _buildSubjectsList(sortedSubjects);
+                  },
                 );
               },
             ),
@@ -181,6 +234,56 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _onAddSubject,
         child: const Icon(Icons.add_rounded),
+      ),
+    );
+  }
+
+  Widget _buildSubjectsList(List<Subject> subjects) {
+    if (subjects.isEmpty) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: _searchQuery.isEmpty
+            ? SubjectEmptyState(onAddSubject: _onAddSubject)
+            : const Center(
+                child: Text(
+                  'No subjects found',
+                  style: AppTextStyles.bodyMedium,
+                ),
+              ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.only(
+        left: AppDimensions.space8,
+        right: AppDimensions.space8,
+        bottom: AppDimensions.space32,
+      ),
+      sliver: SliverList.separated(
+        itemCount: subjects.length,
+        separatorBuilder: (_, __) {
+          return const Divider(indent: 76, endIndent: 8);
+        },
+        itemBuilder: (context, index) {
+          final subject = subjects[index];
+
+          return Dismissible(
+            key: ValueKey('subject-${subject.id}'),
+            direction: DismissDirection.startToEnd,
+            background: _buildDeleteBackground(),
+            confirmDismiss: (_) => _confirmDeleteSubject(subject),
+            onDismissed: (_) => _deleteSubject(subject),
+            child: GestureDetector(
+              onLongPress: () => _onEditSubject(subject),
+              child: SubjectTile(
+                subject: subject,
+                onTap: () {
+                  _onSubjectTap(subject.id);
+                },
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -309,4 +412,13 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
       ),
     );
   }
+}
+class _SubjectTimetableOrder {
+  final Subject subject;
+  final DateTime nextClass;
+
+  const _SubjectTimetableOrder({
+    required this.subject,
+    required this.nextClass,
+  });
 }
