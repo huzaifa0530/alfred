@@ -2,7 +2,7 @@ name: alfred
 description: "Alfred — Your trusted partner, always by your side."
 publish_to: 'none'
 
-version: 1.0.27+1
+version: 2.0.27+1
 
 environment:
   sdk: ^3.12.0
