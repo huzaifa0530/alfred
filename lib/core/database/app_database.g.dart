@@ -2721,20 +2721,23 @@ class $AttendanceRecordsTable extends AttendanceRecords
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _presentMeta = const VerificationMeta(
-    'present',
-  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
-  late final GeneratedColumn<bool> present = GeneratedColumn<bool>(
-    'present',
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
     aliasedName,
     false,
-    type: DriftSqlType.bool,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("present" IN (0, 1))',
-    ),
-    defaultValue: const Constant(true),
   );
   static const VerificationMeta _markedAtMeta = const VerificationMeta(
     'markedAt',
@@ -2748,24 +2751,15 @@ class $AttendanceRecordsTable extends AttendanceRecords
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
-  static const VerificationMeta _noteMeta = const VerificationMeta('note');
-  @override
-  late final GeneratedColumn<String> note = GeneratedColumn<String>(
-    'note',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     subjectId,
     scheduleId,
     date,
-    present,
-    markedAt,
+    status,
     note,
+    markedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2804,22 +2798,24 @@ class $AttendanceRecordsTable extends AttendanceRecords
     } else if (isInserting) {
       context.missing(_dateMeta);
     }
-    if (data.containsKey('present')) {
+    if (data.containsKey('status')) {
       context.handle(
-        _presentMeta,
-        present.isAcceptableOrUnknown(data['present']!, _presentMeta),
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
     if (data.containsKey('marked_at')) {
       context.handle(
         _markedAtMeta,
         markedAt.isAcceptableOrUnknown(data['marked_at']!, _markedAtMeta),
-      );
-    }
-    if (data.containsKey('note')) {
-      context.handle(
-        _noteMeta,
-        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
     return context;
@@ -2847,18 +2843,18 @@ class $AttendanceRecordsTable extends AttendanceRecords
         DriftSqlType.dateTime,
         data['${effectivePrefix}date'],
       )!,
-      present: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}present'],
-      )!,
-      markedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}marked_at'],
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
       )!,
       note: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
+      markedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}marked_at'],
+      )!,
     );
   }
 
@@ -2874,17 +2870,17 @@ class AttendanceRecord extends DataClass
   final int subjectId;
   final int? scheduleId;
   final DateTime date;
-  final bool present;
-  final DateTime markedAt;
+  final String status;
   final String? note;
+  final DateTime markedAt;
   const AttendanceRecord({
     required this.id,
     required this.subjectId,
     this.scheduleId,
     required this.date,
-    required this.present,
-    required this.markedAt,
+    required this.status,
     this.note,
+    required this.markedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2895,11 +2891,11 @@ class AttendanceRecord extends DataClass
       map['schedule_id'] = Variable<int>(scheduleId);
     }
     map['date'] = Variable<DateTime>(date);
-    map['present'] = Variable<bool>(present);
-    map['marked_at'] = Variable<DateTime>(markedAt);
+    map['status'] = Variable<String>(status);
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
+    map['marked_at'] = Variable<DateTime>(markedAt);
     return map;
   }
 
@@ -2911,9 +2907,9 @@ class AttendanceRecord extends DataClass
           ? const Value.absent()
           : Value(scheduleId),
       date: Value(date),
-      present: Value(present),
-      markedAt: Value(markedAt),
+      status: Value(status),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      markedAt: Value(markedAt),
     );
   }
 
@@ -2927,9 +2923,9 @@ class AttendanceRecord extends DataClass
       subjectId: serializer.fromJson<int>(json['subjectId']),
       scheduleId: serializer.fromJson<int?>(json['scheduleId']),
       date: serializer.fromJson<DateTime>(json['date']),
-      present: serializer.fromJson<bool>(json['present']),
-      markedAt: serializer.fromJson<DateTime>(json['markedAt']),
+      status: serializer.fromJson<String>(json['status']),
       note: serializer.fromJson<String?>(json['note']),
+      markedAt: serializer.fromJson<DateTime>(json['markedAt']),
     );
   }
   @override
@@ -2940,9 +2936,9 @@ class AttendanceRecord extends DataClass
       'subjectId': serializer.toJson<int>(subjectId),
       'scheduleId': serializer.toJson<int?>(scheduleId),
       'date': serializer.toJson<DateTime>(date),
-      'present': serializer.toJson<bool>(present),
-      'markedAt': serializer.toJson<DateTime>(markedAt),
+      'status': serializer.toJson<String>(status),
       'note': serializer.toJson<String?>(note),
+      'markedAt': serializer.toJson<DateTime>(markedAt),
     };
   }
 
@@ -2951,17 +2947,17 @@ class AttendanceRecord extends DataClass
     int? subjectId,
     Value<int?> scheduleId = const Value.absent(),
     DateTime? date,
-    bool? present,
-    DateTime? markedAt,
+    String? status,
     Value<String?> note = const Value.absent(),
+    DateTime? markedAt,
   }) => AttendanceRecord(
     id: id ?? this.id,
     subjectId: subjectId ?? this.subjectId,
     scheduleId: scheduleId.present ? scheduleId.value : this.scheduleId,
     date: date ?? this.date,
-    present: present ?? this.present,
-    markedAt: markedAt ?? this.markedAt,
+    status: status ?? this.status,
     note: note.present ? note.value : this.note,
+    markedAt: markedAt ?? this.markedAt,
   );
   AttendanceRecord copyWithCompanion(AttendanceRecordsCompanion data) {
     return AttendanceRecord(
@@ -2971,9 +2967,9 @@ class AttendanceRecord extends DataClass
           ? data.scheduleId.value
           : this.scheduleId,
       date: data.date.present ? data.date.value : this.date,
-      present: data.present.present ? data.present.value : this.present,
-      markedAt: data.markedAt.present ? data.markedAt.value : this.markedAt,
+      status: data.status.present ? data.status.value : this.status,
       note: data.note.present ? data.note.value : this.note,
+      markedAt: data.markedAt.present ? data.markedAt.value : this.markedAt,
     );
   }
 
@@ -2984,16 +2980,16 @@ class AttendanceRecord extends DataClass
           ..write('subjectId: $subjectId, ')
           ..write('scheduleId: $scheduleId, ')
           ..write('date: $date, ')
-          ..write('present: $present, ')
-          ..write('markedAt: $markedAt, ')
-          ..write('note: $note')
+          ..write('status: $status, ')
+          ..write('note: $note, ')
+          ..write('markedAt: $markedAt')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode =>
-      Object.hash(id, subjectId, scheduleId, date, present, markedAt, note);
+      Object.hash(id, subjectId, scheduleId, date, status, note, markedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3002,9 +2998,9 @@ class AttendanceRecord extends DataClass
           other.subjectId == this.subjectId &&
           other.scheduleId == this.scheduleId &&
           other.date == this.date &&
-          other.present == this.present &&
-          other.markedAt == this.markedAt &&
-          other.note == this.note);
+          other.status == this.status &&
+          other.note == this.note &&
+          other.markedAt == this.markedAt);
 }
 
 class AttendanceRecordsCompanion extends UpdateCompanion<AttendanceRecord> {
@@ -3012,45 +3008,46 @@ class AttendanceRecordsCompanion extends UpdateCompanion<AttendanceRecord> {
   final Value<int> subjectId;
   final Value<int?> scheduleId;
   final Value<DateTime> date;
-  final Value<bool> present;
-  final Value<DateTime> markedAt;
+  final Value<String> status;
   final Value<String?> note;
+  final Value<DateTime> markedAt;
   const AttendanceRecordsCompanion({
     this.id = const Value.absent(),
     this.subjectId = const Value.absent(),
     this.scheduleId = const Value.absent(),
     this.date = const Value.absent(),
-    this.present = const Value.absent(),
-    this.markedAt = const Value.absent(),
+    this.status = const Value.absent(),
     this.note = const Value.absent(),
+    this.markedAt = const Value.absent(),
   });
   AttendanceRecordsCompanion.insert({
     this.id = const Value.absent(),
     required int subjectId,
     this.scheduleId = const Value.absent(),
     required DateTime date,
-    this.present = const Value.absent(),
-    this.markedAt = const Value.absent(),
+    required String status,
     this.note = const Value.absent(),
+    this.markedAt = const Value.absent(),
   }) : subjectId = Value(subjectId),
-       date = Value(date);
+       date = Value(date),
+       status = Value(status);
   static Insertable<AttendanceRecord> custom({
     Expression<int>? id,
     Expression<int>? subjectId,
     Expression<int>? scheduleId,
     Expression<DateTime>? date,
-    Expression<bool>? present,
-    Expression<DateTime>? markedAt,
+    Expression<String>? status,
     Expression<String>? note,
+    Expression<DateTime>? markedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (subjectId != null) 'subject_id': subjectId,
       if (scheduleId != null) 'schedule_id': scheduleId,
       if (date != null) 'date': date,
-      if (present != null) 'present': present,
-      if (markedAt != null) 'marked_at': markedAt,
+      if (status != null) 'status': status,
       if (note != null) 'note': note,
+      if (markedAt != null) 'marked_at': markedAt,
     });
   }
 
@@ -3059,18 +3056,18 @@ class AttendanceRecordsCompanion extends UpdateCompanion<AttendanceRecord> {
     Value<int>? subjectId,
     Value<int?>? scheduleId,
     Value<DateTime>? date,
-    Value<bool>? present,
-    Value<DateTime>? markedAt,
+    Value<String>? status,
     Value<String?>? note,
+    Value<DateTime>? markedAt,
   }) {
     return AttendanceRecordsCompanion(
       id: id ?? this.id,
       subjectId: subjectId ?? this.subjectId,
       scheduleId: scheduleId ?? this.scheduleId,
       date: date ?? this.date,
-      present: present ?? this.present,
-      markedAt: markedAt ?? this.markedAt,
+      status: status ?? this.status,
       note: note ?? this.note,
+      markedAt: markedAt ?? this.markedAt,
     );
   }
 
@@ -3089,14 +3086,14 @@ class AttendanceRecordsCompanion extends UpdateCompanion<AttendanceRecord> {
     if (date.present) {
       map['date'] = Variable<DateTime>(date.value);
     }
-    if (present.present) {
-      map['present'] = Variable<bool>(present.value);
-    }
-    if (markedAt.present) {
-      map['marked_at'] = Variable<DateTime>(markedAt.value);
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
     }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
+    }
+    if (markedAt.present) {
+      map['marked_at'] = Variable<DateTime>(markedAt.value);
     }
     return map;
   }
@@ -3108,9 +3105,9 @@ class AttendanceRecordsCompanion extends UpdateCompanion<AttendanceRecord> {
           ..write('subjectId: $subjectId, ')
           ..write('scheduleId: $scheduleId, ')
           ..write('date: $date, ')
-          ..write('present: $present, ')
-          ..write('markedAt: $markedAt, ')
-          ..write('note: $note')
+          ..write('status: $status, ')
+          ..write('note: $note, ')
+          ..write('markedAt: $markedAt')
           ..write(')'))
         .toString();
   }
@@ -5304,9 +5301,9 @@ typedef $$AttendanceRecordsTableCreateCompanionBuilder =
       required int subjectId,
       Value<int?> scheduleId,
       required DateTime date,
-      Value<bool> present,
-      Value<DateTime> markedAt,
+      required String status,
       Value<String?> note,
+      Value<DateTime> markedAt,
     });
 typedef $$AttendanceRecordsTableUpdateCompanionBuilder =
     AttendanceRecordsCompanion Function({
@@ -5314,9 +5311,9 @@ typedef $$AttendanceRecordsTableUpdateCompanionBuilder =
       Value<int> subjectId,
       Value<int?> scheduleId,
       Value<DateTime> date,
-      Value<bool> present,
-      Value<DateTime> markedAt,
+      Value<String> status,
       Value<String?> note,
+      Value<DateTime> markedAt,
     });
 
 class $$AttendanceRecordsTableFilterComposer
@@ -5348,18 +5345,18 @@ class $$AttendanceRecordsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get present => $composableBuilder(
-    column: $table.present,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get markedAt => $composableBuilder(
-    column: $table.markedAt,
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
     builder: (column) => ColumnFilters(column),
   );
 
   ColumnFilters<String> get note => $composableBuilder(
     column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get markedAt => $composableBuilder(
+    column: $table.markedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5393,18 +5390,18 @@ class $$AttendanceRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get present => $composableBuilder(
-    column: $table.present,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get markedAt => $composableBuilder(
-    column: $table.markedAt,
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
     builder: (column) => ColumnOrderings(column),
   );
 
   ColumnOrderings<String> get note => $composableBuilder(
     column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get markedAt => $composableBuilder(
+    column: $table.markedAt,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -5432,14 +5429,14 @@ class $$AttendanceRecordsTableAnnotationComposer
   GeneratedColumn<DateTime> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
 
-  GeneratedColumn<bool> get present =>
-      $composableBuilder(column: $table.present, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get markedAt =>
-      $composableBuilder(column: $table.markedAt, builder: (column) => column);
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get markedAt =>
+      $composableBuilder(column: $table.markedAt, builder: (column) => column);
 }
 
 class $$AttendanceRecordsTableTableManager
@@ -5486,17 +5483,17 @@ class $$AttendanceRecordsTableTableManager
                 Value<int> subjectId = const Value.absent(),
                 Value<int?> scheduleId = const Value.absent(),
                 Value<DateTime> date = const Value.absent(),
-                Value<bool> present = const Value.absent(),
-                Value<DateTime> markedAt = const Value.absent(),
+                Value<String> status = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<DateTime> markedAt = const Value.absent(),
               }) => AttendanceRecordsCompanion(
                 id: id,
                 subjectId: subjectId,
                 scheduleId: scheduleId,
                 date: date,
-                present: present,
-                markedAt: markedAt,
+                status: status,
                 note: note,
+                markedAt: markedAt,
               ),
           createCompanionCallback:
               ({
@@ -5504,17 +5501,17 @@ class $$AttendanceRecordsTableTableManager
                 required int subjectId,
                 Value<int?> scheduleId = const Value.absent(),
                 required DateTime date,
-                Value<bool> present = const Value.absent(),
-                Value<DateTime> markedAt = const Value.absent(),
+                required String status,
                 Value<String?> note = const Value.absent(),
+                Value<DateTime> markedAt = const Value.absent(),
               }) => AttendanceRecordsCompanion.insert(
                 id: id,
                 subjectId: subjectId,
                 scheduleId: scheduleId,
                 date: date,
-                present: present,
-                markedAt: markedAt,
+                status: status,
                 note: note,
+                markedAt: markedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

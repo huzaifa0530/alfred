@@ -1,3 +1,4 @@
+import 'package:alfred/features/notes/domain/usecases/update_note.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/ai_providers.dart';
@@ -66,4 +67,7 @@ final summarizeNoteProvider = Provider<SummarizeNote>((ref) {
 
 final parseNotePromptProvider = Provider<ParseNotePrompt>((ref) {
   return ParseNotePrompt(ref.watch(geminiClientProvider));
+});
+final updateNoteProvider = Provider<UpdateNote>((ref) {
+  return UpdateNote(ref.watch(notesRepositoryProvider));
 });

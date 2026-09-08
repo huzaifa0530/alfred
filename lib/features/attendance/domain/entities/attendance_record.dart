@@ -1,37 +1,34 @@
+enum AttendanceStatus { present, absent, cancelled, noClass }
+
 class AttendanceRecord {
   final int id;
   final int subjectId;
   final int? scheduleId;
   final DateTime date;
-  final bool present;
+  final AttendanceStatus status;
   final DateTime markedAt;
   final String? note;
 
-  const AttendanceRecord({
+  // backwards compat - so old code `r.present` still works
+  bool get present => status == AttendanceStatus.present;
+
+  AttendanceRecord({
     required this.id,
     required this.subjectId,
     this.scheduleId,
     required this.date,
-    required this.present,
+    required this.status,
     required this.markedAt,
     this.note,
   });
 
-  AttendanceRecord copyWith({
-    int? id,
-    int? subjectId,
-    int? scheduleId,
-    DateTime? date,
-    bool? present,
-    DateTime? markedAt,
-    String? note,
-  }) {
+  AttendanceRecord copyWith({AttendanceStatus? status, DateTime? markedAt, String? note, int? scheduleId}) {
     return AttendanceRecord(
-      id: id ?? this.id,
-      subjectId: subjectId ?? this.subjectId,
+      id: id,
+      subjectId: subjectId,
       scheduleId: scheduleId ?? this.scheduleId,
-      date: date ?? this.date,
-      present: present ?? this.present,
+      date: date,
+      status: status ?? this.status,
       markedAt: markedAt ?? this.markedAt,
       note: note ?? this.note,
     );

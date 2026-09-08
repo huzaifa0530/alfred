@@ -19,6 +19,12 @@ import '../../domain/entities/note.dart';
 import '../controllers/notes_controller.dart';
 import '../widgets/note_bubble.dart';
 import '../widgets/note_empty_state.dart';
+// i wnat some new features in thi s code i want user able to copy note
+
+// and user able to share note content with other apps.multiple content to app share
+// i want edit note feature
+// i want whstapp liek text stling buller number list bold italic basically
+// in whstapp doing this is tough use rgenrlayy donot know how to style i wnat simplme feature to do so
 
 class NotesScreen extends ConsumerStatefulWidget {
   final int subjectId;
@@ -41,10 +47,27 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   bool _isSending = false;
-
+  Note? _editingNote;
   bool _isRecording = false;
   Duration _recordingDuration = Duration.zero;
   Timer? _recordingTimer;
+  void _startEdit(Note note) {
+    setState(() {
+      _editingNote = note;
+      _textController.text = note.content;
+      _textController.selection = TextSelection.collapsed(
+        offset: note.content.length,
+      );
+    });
+    _focusNode.requestFocus();
+  }
+
+  void _cancelEdit() {
+    setState(() {
+      _editingNote = null;
+      _textController.clear();
+    });
+  }
 
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -651,7 +674,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
             return NoteBubble(
               note: note,
               attachments: attachments.map(_buildAttachmentWidget).toList(),
+              attachmentPaths: attachments.map((a) => a.path).toList(),
               onDelete: () => _confirmDelete(note),
+              onEdit: () => _startEdit(note),
               onSummarize: note.content.trim().isEmpty
                   ? null
                   : () => _summarizeNote(note),
@@ -743,6 +768,29 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_editingNote != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.edit_outlined, size: 16),
+                    const SizedBox(width: 6),
+                    const Expanded(
+                      child: Text(
+                        'Editing note',
+                        style: AppTextStyles.labelSmall,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: _cancelEdit,
+                      child: const Icon(Icons.close_rounded, size: 18),
+                    ),
+                  ],
+                ),
+              ),
+
+            _buildFormattingToolbar(),
+
             if (_pendingAttachments.isNotEmpty) _buildPendingAttachments(),
 
             Row(
@@ -757,23 +805,27 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                   child: TextField(
                     controller: _textController,
                     focusNode: _focusNode,
-                    style: const TextStyle(color: Colors.white),
 
                     minLines: 1,
-                    maxLines: 5,
+                    maxLines: 8,
+
+                    inputFormatters: [NoteListInputFormatter()],
+
                     textCapitalization: TextCapitalization.sentences,
-                    onSubmitted: (_) => _sendNote(controller),
+
                     decoration: InputDecoration(
-                      hintText: 'Write a note...',
+                      hintText: _editingNote != null
+                          ? 'Edit note...'
+                          : 'Write a note...',
                       filled: true,
                       fillColor: AppColors.surfaceElevated,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(20),
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 18,
-                        vertical: 12,
+                        vertical: 14,
                       ),
                     ),
                   ),
@@ -799,11 +851,17 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Icon(Icons.arrow_upward_rounded),
+                              : Icon(
+                                  _editingNote != null
+                                      ? Icons.check_rounded
+                                      : Icons.arrow_upward_rounded,
+                                ),
                         )
                       : IconButton(
                           key: const ValueKey('voice'),
-                          onPressed: _startRecording,
+                          onPressed: _editingNote != null
+                              ? null
+                              : _startRecording,
                           icon: const Icon(Icons.mic_none_rounded),
                         ),
                 ),
@@ -955,31 +1013,32 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   Future<void> _sendNote(NotesController controller) async {
     final text = _textController.text.trim();
 
-    if (_isSending) {
-      return;
-    }
+    if (_isSending) return;
 
-    if (text.isEmpty && _pendingAttachments.isEmpty) {
-      return;
-    }
+    final isEditing = _editingNote != null;
 
-    setState(() {
-      _isSending = true;
-    });
+    if (text.isEmpty && !isEditing && _pendingAttachments.isEmpty) return;
+    if (isEditing && text.isEmpty)
+      return; // don't allow saving an edit into empty content
+
+    setState(() => _isSending = true);
 
     try {
-      await controller.createNoteWithAttachments(
-        content: text,
-        files: List<File>.from(_pendingAttachments),
-      );
-
-      if (!mounted) {
-        return;
+      if (isEditing) {
+        await controller.updateNote(_editingNote!, text);
+      } else {
+        await controller.createNoteWithAttachments(
+          content: text,
+          files: List<File>.from(_pendingAttachments),
+        );
       }
+
+      if (!mounted) return;
 
       setState(() {
         _textController.clear();
         _pendingAttachments.clear();
+        _editingNote = null;
       });
 
       _focusNode.requestFocus();
@@ -987,22 +1046,347 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
       debugPrint('SEND NOTE ERROR: $e');
       debugPrintStack(stackTrace: stackTrace);
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to save note: $e')));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSending = false;
-        });
-      }
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
+  void _applyInlineFormat(String marker) {
+    final value = _textController.value;
+    final text = value.text;
+
+    if (!value.selection.isValid) {
+      return;
+    }
+
+    int start = value.selection.start;
+    int end = value.selection.end;
+
+    start = start.clamp(0, text.length);
+    end = end.clamp(0, text.length);
+
+    // ==================================================
+    // NO SELECTION
+    // ==================================================
+
+    if (start == end) {
+      // Find the current word.
+      int wordStart = start;
+      int wordEnd = start;
+
+      while (wordStart > 0 && !_isFormattingSeparator(text[wordStart - 1])) {
+        wordStart--;
+      }
+
+      while (wordEnd < text.length && !_isFormattingSeparator(text[wordEnd])) {
+        wordEnd++;
+      }
+
+      // If cursor is inside a word, format the whole word.
+      if (wordStart != wordEnd && start > wordStart && start < wordEnd) {
+        final word = text.substring(wordStart, wordEnd);
+
+        final alreadyFormatted =
+            word.startsWith(marker) &&
+            word.endsWith(marker) &&
+            word.length > marker.length * 2;
+
+        if (alreadyFormatted) {
+          final cleanWord = word.substring(
+            marker.length,
+            word.length - marker.length,
+          );
+
+          final newText = text.replaceRange(wordStart, wordEnd, cleanWord);
+
+          _textController.value = TextEditingValue(
+            text: newText,
+            selection: TextSelection.collapsed(
+              offset: wordStart + cleanWord.length,
+            ),
+          );
+        } else {
+          final formattedWord = '$marker$word$marker';
+
+          final newText = text.replaceRange(wordStart, wordEnd, formattedWord);
+
+          _textController.value = TextEditingValue(
+            text: newText,
+            selection: TextSelection.collapsed(
+              offset: wordStart + formattedWord.length,
+            ),
+          );
+        }
+
+        return;
+      }
+
+      // No word: insert formatting markers.
+      final newText = text.replaceRange(start, end, '$marker$marker');
+
+      _textController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: start + marker.length),
+      );
+
+      return;
+    }
+
+    // ==================================================
+    // TEXT IS SELECTED
+    // ==================================================
+
+    final selectedText = text.substring(start, end);
+
+    final isAlreadyFormatted =
+        selectedText.startsWith(marker) &&
+        selectedText.endsWith(marker) &&
+        selectedText.length > marker.length * 2;
+
+    String replacement;
+
+    if (isAlreadyFormatted) {
+      replacement = selectedText.substring(
+        marker.length,
+        selectedText.length - marker.length,
+      );
+    } else {
+      replacement = '$marker$selectedText$marker';
+    }
+
+    final newText = text.replaceRange(start, end, replacement);
+
+    _textController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: start + replacement.length),
+    );
+  }
+
+  bool _isFormattingSeparator(String char) {
+    return char == ' ' ||
+        char == '\n' ||
+        char == '\t' ||
+        char == '.' ||
+        char == ',' ||
+        char == '!' ||
+        char == '?' ||
+        char == ':' ||
+        char == ';' ||
+        char == '(' ||
+        char == ')' ||
+        char == '[' ||
+        char == ']' ||
+        char == '{' ||
+        char == '}' ||
+        char == '"' ||
+        char == "'";
+  }
+
+  void _applyLinePrefix(String type) {
+    final value = _textController.value;
+    final text = value.text;
+
+    if (!value.selection.isValid) {
+      return;
+    }
+
+    int selectionStart = value.selection.start;
+    int selectionEnd = value.selection.end;
+
+    selectionStart = selectionStart.clamp(0, text.length);
+    selectionEnd = selectionEnd.clamp(0, text.length);
+
+    // ==================================================
+    // FIND FIRST LINE
+    // ==================================================
+
+    int blockStart = text.lastIndexOf(
+      '\n',
+      selectionStart > 0 ? selectionStart - 1 : 0,
+    );
+
+    blockStart = blockStart == -1 ? 0 : blockStart + 1;
+
+    // ==================================================
+    // FIND LAST LINE
+    // ==================================================
+
+    int blockEnd = text.indexOf('\n', selectionEnd);
+
+    blockEnd = blockEnd == -1 ? text.length : blockEnd;
+
+    final block = text.substring(blockStart, blockEnd);
+
+    final lines = block.split('\n');
+
+    // ==================================================
+    // BULLET
+    // ==================================================
+
+    if (type == 'bullet') {
+      final formattedLines = <String>[];
+
+      for (final line in lines) {
+        String content = line;
+
+        // Remove existing numbered prefix.
+        content = content.replaceFirst(RegExp(r'^\d+\.\s+'), '');
+
+        // Toggle bullet.
+        if (content.startsWith('• ')) {
+          content = content.substring(2);
+        } else {
+          content = '• $content';
+        }
+
+        formattedLines.add(content);
+      }
+
+      final replacement = formattedLines.join('\n');
+
+      final newText = text.replaceRange(blockStart, blockEnd, replacement);
+
+      final newCursor = (blockStart + replacement.length).clamp(
+        0,
+        newText.length,
+      );
+
+      _textController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: newCursor),
+      );
+
+      return;
+    }
+
+    // ==================================================
+    // NUMBERED
+    // ==================================================
+
+    if (type == 'number') {
+      final formattedLines = <String>[];
+
+      bool allAlreadyNumbered = true;
+
+      for (final line in lines) {
+        if (!RegExp(r'^\d+\.\s+').hasMatch(line)) {
+          allAlreadyNumbered = false;
+          break;
+        }
+      }
+
+      // If all selected lines are numbered,
+      // clicking number again removes numbering.
+      if (allAlreadyNumbered) {
+        for (final line in lines) {
+          formattedLines.add(line.replaceFirst(RegExp(r'^\d+\.\s+'), ''));
+        }
+      } else {
+        int number = 1;
+
+        for (final line in lines) {
+          String content = line;
+
+          // Remove bullet.
+          content = content.replaceFirst(RegExp(r'^•\s+'), '');
+
+          // Remove existing number.
+          content = content.replaceFirst(RegExp(r'^\d+\.\s+'), '');
+
+          formattedLines.add('$number. $content');
+
+          number++;
+        }
+      }
+
+      final replacement = formattedLines.join('\n');
+
+      final newText = text.replaceRange(blockStart, blockEnd, replacement);
+
+      final newCursor = (blockStart + replacement.length).clamp(
+        0,
+        newText.length,
+      );
+
+      _textController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: newCursor),
+      );
+    }
+  }
+Widget _buildFormattingToolbar() {
+  return SizedBox(
+    height: 42,
+    child: Row(
+      children: [
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: 'Bold',
+          icon: const Icon(
+            Icons.format_bold_rounded,
+            size: 20,
+          ),
+          onPressed: () => _applyInlineFormat('*'),
+        ),
+
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: 'Italic',
+          icon: const Icon(
+            Icons.format_italic_rounded,
+            size: 20,
+          ),
+          onPressed: () => _applyInlineFormat('_'),
+        ),
+
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: 'Strikethrough',
+          icon: const Icon(
+            Icons.strikethrough_s_rounded,
+            size: 20,
+          ),
+          onPressed: () => _applyInlineFormat('~'),
+        ),
+
+        const SizedBox(width: 4),
+
+        Container(
+          width: 1,
+          height: 22,
+          color: AppColors.border,
+        ),
+
+        const SizedBox(width: 4),
+
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: 'Bullet list',
+          icon: const Icon(
+            Icons.format_list_bulleted_rounded,
+            size: 20,
+          ),
+          onPressed: () => _applyLinePrefix('bullet'),
+        ),
+
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: 'Numbered list',
+          icon: const Icon(
+            Icons.format_list_numbered_rounded,
+            size: 20,
+          ),
+          onPressed: () => _applyLinePrefix('number'),
+        ),
+      ],
+    ),
+  );
+}
   Future<void> _confirmDelete(Note note) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
@@ -1035,5 +1419,167 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     final controller = ref.read(notesControllerProvider(widget.subjectId));
 
     await controller.deleteNote(note.id);
+  }
+}
+
+class NoteListInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final oldText = oldValue.text;
+    final newText = newValue.text;
+
+    // Nothing changed.
+    if (oldText == newText) {
+      return newValue;
+    }
+
+    final cursor = newValue.selection.baseOffset;
+
+    if (cursor < 1 ||
+        cursor > newText.length) {
+      return newValue;
+    }
+
+    // We only handle a single ENTER.
+    //
+    // This prevents pasted multiline text from
+    // unexpectedly becoming a list.
+    if (newText.length != oldText.length + 1) {
+      return newValue;
+    }
+
+    // The newly inserted character must be newline.
+    if (newText[cursor - 1] != '\n') {
+      return newValue;
+    }
+
+    // Position of the newline.
+    final newlineIndex = cursor - 1;
+
+    // Find previous line start.
+    final previousNewline = newText.lastIndexOf(
+      '\n',
+      newlineIndex - 1,
+    );
+
+    final previousLineStart =
+        previousNewline == -1
+            ? 0
+            : previousNewline + 1;
+
+    // Get line before the new newline.
+    final previousLine = newText.substring(
+      previousLineStart,
+      newlineIndex,
+    );
+
+    // ==================================================
+    // BULLET
+    // ==================================================
+
+    if (previousLine.startsWith('• ')) {
+      final content = previousLine.substring(2);
+
+      // Empty bullet:
+      //
+      // • hello
+      // • |
+      //
+      // Enter ->
+      //
+      // • hello
+      // |
+      if (content.trim().isEmpty) {
+        final updatedText = newText.replaceRange(
+          previousLineStart,
+          cursor,
+          '',
+        );
+
+        return TextEditingValue(
+          text: updatedText,
+          selection: TextSelection.collapsed(
+            offset: previousLineStart,
+          ),
+        );
+      }
+
+      // Continue bullet.
+      const prefix = '• ';
+
+      final updatedText = newText.replaceRange(
+        cursor,
+        cursor,
+        prefix,
+      );
+
+      return TextEditingValue(
+        text: updatedText,
+        selection: TextSelection.collapsed(
+          offset: cursor + prefix.length,
+        ),
+      );
+    }
+
+    // ==================================================
+    // NUMBERED LIST
+    // ==================================================
+
+    final numberMatch = RegExp(
+      r'^(\d+)\.\s+',
+    ).firstMatch(previousLine);
+
+    if (numberMatch != null) {
+      final currentNumber =
+          int.tryParse(
+            numberMatch.group(1)!,
+          ) ??
+          1;
+
+      final prefixLength =
+          numberMatch.group(0)!.length;
+
+      final content = previousLine.substring(
+        prefixLength,
+      );
+
+      // Empty numbered item.
+      if (content.trim().isEmpty) {
+        final updatedText = newText.replaceRange(
+          previousLineStart,
+          cursor,
+          '',
+        );
+
+        return TextEditingValue(
+          text: updatedText,
+          selection: TextSelection.collapsed(
+            offset: previousLineStart,
+          ),
+        );
+      }
+
+      final nextNumber = currentNumber + 1;
+
+      final prefix = '$nextNumber. ';
+
+      final updatedText = newText.replaceRange(
+        cursor,
+        cursor,
+        prefix,
+      );
+
+      return TextEditingValue(
+        text: updatedText,
+        selection: TextSelection.collapsed(
+          offset: cursor + prefix.length,
+        ),
+      );
+    }
+
+    return newValue;
   }
 }

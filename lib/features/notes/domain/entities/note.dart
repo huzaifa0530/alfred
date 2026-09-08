@@ -5,6 +5,7 @@ class Note {
   final String noteType;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isEdited;
 
   const Note({
     required this.id,
@@ -13,6 +14,7 @@ class Note {
     required this.noteType,
     required this.createdAt,
     required this.updatedAt,
+    this.isEdited = false,
   });
 
   Note copyWith({
@@ -22,6 +24,7 @@ class Note {
     String? noteType,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? isEdited,
   }) {
     return Note(
       id: id ?? this.id,
@@ -30,6 +33,7 @@ class Note {
       noteType: noteType ?? this.noteType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isEdited: isEdited ?? this.isEdited,
     );
   }
 }

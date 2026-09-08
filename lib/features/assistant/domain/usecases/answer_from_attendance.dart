@@ -3,7 +3,6 @@ import 'package:alfred/core/ai/ai_client.dart';
 
 class AnswerFromAttendance {
   final AiClient _client;
-
   AnswerFromAttendance(this._client);
 
   Future<String> call({
@@ -15,22 +14,23 @@ class AnswerFromAttendance {
       return "There is no attendance recorded for $subjectName yet.";
     }
 
-    final presentCount = records.where((r) => r.present).length;
-    final total = records.length;
-    final percentage = total == 0 ? 0.0 : (presentCount / total) * 100;
+    final sorted = [...records]..sort((a,b) => a.date.compareTo(b.date));
 
-    final lines = records.map((r) {
-      final status = r.present ? 'present' : 'absent';
-      final note = r.note == null ? '' : ' (${r.note})';
-      return '- ${r.date}: $status$note';
-    }).join('\n');
+    final presentCount = sorted.where((r) => r.status == AttendanceStatus.present).length;
+    final absentCount = sorted.where((r) => r.status == AttendanceStatus.absent).length;
+    final cancelledCount = sorted.where((r) => r.status == AttendanceStatus.cancelled || r.status == AttendanceStatus.noClass).length;
+    final totalForPercent = presentCount + absentCount;
+    final percentage = totalForPercent == 0 ? 0.0 : (presentCount / totalForPercent) * 100;
 
-    final prompt =
-        '''
-Answer Sir Wayne's question using the attendance data below for
-"$subjectName". Overall attendance is $presentCount/$total (${percentage.toStringAsFixed(1)}%).
-Do any extra math yourself if asked (e.g. "how many can I miss to stay above 75%").
-Keep the answer short and direct.
+    final lines = sorted.map((r) =>
+      '- ${r.date.toIso8601String().split('T').first}: ${r.status.name}${r.note == null ? '' : ' (${r.note})'}'
+    ).join('\n');
+
+    final prompt = '''
+Answer Sir Wayne's question using attendance for "$subjectName".
+Stats: $presentCount present, $absentCount absent, $cancelledCount cancelled/noClass (excluded from calculation).
+Overall attendance = $presentCount / $totalForPercent = ${percentage.toStringAsFixed(1)}% (present+absent only, cancelled has 0 effect).
+If asked "how many can I miss", calculate using present+absent only.
 
 RECORDS:
 $lines
@@ -38,7 +38,6 @@ $lines
 QUESTION:
 $question
 ''';
-
     return _client.generateText(prompt);
   }
 }

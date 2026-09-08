@@ -45,10 +45,12 @@ class NotesLocalDataSource {
     );
   }
 
-  Future<bool> updateNote(Note note) {
-    return _dao.updateNote(
+  Future<bool> updateNote(Note note) async {
+    final updatedRows = await _dao.updateNote(
       NoteMapper.toUpdateCompanion(note),
     );
+
+    return updatedRows > 0;
   }
 
   Future<int> deleteNote(int id) {

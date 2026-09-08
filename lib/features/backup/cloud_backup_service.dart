@@ -28,6 +28,7 @@ class CloudBackupInfo {
 
 class CloudBackupService {
   static const _chunkSize = 700 * 1024;
+  static const _ownerDocId = 'owner'; // fixed — not tied to any device's auth uid
 
   final DynamicFirebaseApp firebaseApp;
   final BackupService localBackupService;
@@ -37,38 +38,21 @@ class CloudBackupService {
     required this.localBackupService,
   });
 
-  String get _uid {
+  void _ensureConnected() {
     if (!firebaseApp.isConnected) {
-      throw StateError(
-        'Firebase is not connected.',
-      );
+      throw StateError('Firebase is not connected.');
     }
-
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      throw StateError(
-        'No authenticated Firebase user.',
-      );
-    }
-
-    return user.uid;
   }
 
   FirebaseFirestore get _firestore {
-    if (!firebaseApp.isConnected) {
-      throw StateError(
-        'Firebase is not connected.',
-      );
-    }
-
+    _ensureConnected();
     return FirebaseFirestore.instance;
   }
 
   CollectionReference<Map<String, dynamic>> _backupsCollection() {
     return _firestore
         .collection('backups')
-        .doc(_uid)
+        .doc(_ownerDocId)
         .collection('items');
   }
 
@@ -97,9 +81,7 @@ class CloudBackupService {
         '${firebaseApp.currentApp.options.projectId}',
       );
 
-      debugPrint(
-        'CLOUD SYNC: Current UID = $_uid',
-      );
+
 
       debugPrint('CLOUD SYNC: Creating local backup...');
 

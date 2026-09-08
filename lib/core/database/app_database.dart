@@ -42,14 +42,14 @@ part 'app_database.g.dart';
     EventsDao,
     ClassSchedulesDao,
     AttendanceDao,
-    MarksDao
+    MarksDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -75,7 +75,15 @@ class AppDatabase extends _$AppDatabase {
       if (from < 7) {
         await m.createTable(markComponents);
         await m.createTable(marks);
+      }
+      if (from < 9) {
+        // 1. add new status column
+        await m.addColumn(attendanceRecords, attendanceRecords.status);
 
+        // 2. migrate old bool -> string
+        await customStatement(
+          "UPDATE attendance_records SET status = CASE WHEN present = 1 THEN 'present' ELSE 'absent' END WHERE status IS NULL",
+        );
       }
     },
   );

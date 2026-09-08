@@ -899,11 +899,19 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
       return;
     }
 
+    final statusStr =
+        intent.fields['status'] as String? ??
+        (intent.fields['present'] == true ? 'present' : 'absent');
+    final status = AttendanceStatus.values.firstWhere(
+      (e) => e.name == statusStr,
+      orElse: () => AttendanceStatus.present,
+    );
+
     final record = AttendanceRecord(
       id: 0,
       subjectId: subject.id,
       date: date,
-      present: _asBool(intent.fields['present']) ?? false,
+      status: status, // not present bool
       markedAt: DateTime.now(),
       note: intent.fields['note'] as String?,
     );
@@ -959,7 +967,9 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
           onTimeout: () => throw StateError('Could not read events in time.'),
         );
 
-    debugPrint('EVENTS DEBUG: found ${events.length} events for ${subject.name}');
+    debugPrint(
+      'EVENTS DEBUG: found ${events.length} events for ${subject.name}',
+    );
     for (final e in events) {
       debugPrint('  - "${e.title}" completed=${e.isCompleted}');
     }
@@ -996,7 +1006,9 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
       updatedAt: DateTime.now(),
     );
 
-    debugPrint('EVENTS DEBUG: after copyWith, isCompleted=${updated.isCompleted}');
+    debugPrint(
+      'EVENTS DEBUG: after copyWith, isCompleted=${updated.isCompleted}',
+    );
 
     await ref.read(updateEventProvider)(updated);
     debugPrint('EVENTS DEBUG: update call completed');
@@ -1085,9 +1097,7 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
         intent.fields['startTime'] as String,
       );
 
-      final endTime = normalizeScheduleTime(
-        intent.fields['endTime'] as String,
-      );
+      final endTime = normalizeScheduleTime(intent.fields['endTime'] as String);
 
       final schedule = ClassSchedule(
         id: 0,

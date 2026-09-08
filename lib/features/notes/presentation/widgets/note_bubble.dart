@@ -1,21 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_text_styles.dart';
 import '../../domain/entities/note.dart';
+import 'note_actions_sheet.dart';
+import 'note_text_formatter.dart';
 
 class NoteBubble extends StatelessWidget {
   final Note note;
   final List<Widget> attachments;
+
+  /// Raw file paths for the note's attachments, used for sharing.
+  /// Separate from [attachments] because those are already-built display
+  /// widgets and don't carry paths.
+  final List<String> attachmentPaths;
+
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
   final VoidCallback? onSummarize;
 
   const NoteBubble({
     super.key,
     required this.note,
     this.attachments = const [],
+    this.attachmentPaths = const [],
     this.onDelete,
+    this.onEdit,
     this.onSummarize,
   });
 
@@ -25,17 +38,9 @@ class NoteBubble extends StatelessWidget {
 
     return Dismissible(
       key: ValueKey('note-${note.id}'),
-
       direction: DismissDirection.startToEnd,
-
-      confirmDismiss: (_) async {
-        return await _showDeleteConfirmation(context);
-      },
-
-      onDismissed: (_) {
-        onDelete?.call();
-      },
-
+      confirmDismiss: (_) async => _showDeleteConfirmation(context),
+      onDismissed: (_) => onDelete?.call(),
       background: Container(
         margin: const EdgeInsets.only(bottom: AppDimensions.space8),
         padding: const EdgeInsets.only(left: 20),
@@ -49,18 +54,14 @@ class NoteBubble extends StatelessWidget {
           children: [
             Icon(Icons.delete_outline_rounded, color: Colors.red),
             SizedBox(width: 8),
-            Text(
-              'Delete',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700),
-            ),
+            Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
           ],
         ),
       ),
-
       child: Align(
         alignment: Alignment.centerRight,
         child: GestureDetector(
-          onLongPress: onSummarize == null ? null : () => onSummarize!(),
+          onLongPress: () => _showActions(context),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 520),
             margin: const EdgeInsets.only(bottom: AppDimensions.space8),
@@ -85,12 +86,11 @@ class NoteBubble extends StatelessWidget {
                 if (note.content.trim().isNotEmpty)
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text(
-                      note.content,
+                    child: FormattedNoteText(
+                      text: note.content,
                       style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
                     ),
                   ),
-
                 if (attachments.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Align(
@@ -98,12 +98,14 @@ class NoteBubble extends StatelessWidget {
                     child: Wrap(spacing: 8, runSpacing: 8, children: attachments),
                   ),
                 ],
-
                 const SizedBox(height: AppDimensions.space6),
-
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (note.isEdited) ...[
+                      Text('edited', style: AppTextStyles.labelSmall),
+                      const SizedBox(width: 6),
+                    ],
                     if (onSummarize != null) ...[
                       Icon(
                         Icons.auto_awesome_rounded,
@@ -114,11 +116,7 @@ class NoteBubble extends StatelessWidget {
                     ],
                     Text(time, style: AppTextStyles.labelSmall),
                     const SizedBox(width: 4),
-                    const Icon(
-                      Icons.done_all_rounded,
-                      size: 15,
-                      color: AppColors.primarySoft,
-                    ),
+                    const Icon(Icons.done_all_rounded, size: 15, color: AppColors.primarySoft),
                   ],
                 ),
               ],
@@ -129,15 +127,78 @@ class NoteBubble extends StatelessWidget {
     );
   }
 
+  void _showActions(BuildContext context) {
+    showNoteActionsSheet(
+      context,
+      actions: [
+        NoteAction(
+          icon: Icons.copy_rounded,
+          label: 'Copy',
+          onTap: () => _copyNote(context),
+        ),
+        NoteAction(
+          icon: Icons.share_outlined,
+          label: 'Share',
+          onTap: () => _shareNote(context),
+        ),
+        if (onEdit != null)
+          NoteAction(icon: Icons.edit_outlined, label: 'Edit', onTap: onEdit!),
+        if (onSummarize != null)
+          NoteAction(
+            icon: Icons.auto_awesome_rounded,
+            label: 'Summarize',
+            onTap: onSummarize!,
+          ),
+        if (onDelete != null)
+          NoteAction(
+            icon: Icons.delete_outline_rounded,
+            label: 'Delete',
+            isDestructive: true,
+            onTap: () async {
+              if (await _showDeleteConfirmation(context)) {
+                onDelete!();
+              }
+            },
+          ),
+      ],
+    );
+  }
+
+  Future<void> _copyNote(BuildContext context) async {
+    if (note.content.trim().isEmpty) return;
+
+    await Clipboard.setData(ClipboardData(text: note.content));
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Note copied to clipboard')));
+  }
+
+  Future<void> _shareNote(BuildContext context) async {
+    final text = note.content.trim();
+
+    if (attachmentPaths.isNotEmpty) {
+      await SharePlus.instance.share(
+        ShareParams(
+          text: text.isEmpty ? null : text,
+          files: attachmentPaths.map((path) => XFile(path)).toList(),
+        ),
+      );
+      return;
+    }
+
+    if (text.isEmpty) return;
+
+    await SharePlus.instance.share(ShareParams(text: text));
+  }
+
   Future<bool> _showDeleteConfirmation(BuildContext context) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Delete note?'),
-          content: const Text(
-            'This note and its attachments will be permanently removed.',
-          ),
+          content: const Text('This note and its attachments will be permanently removed.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),

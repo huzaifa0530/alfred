@@ -82,56 +82,69 @@ final schedulesForSubjectProvider = Provider.family<List<ClassSchedule>, int>((
 final getSubjectCalendarStatusesProvider = Provider<GetSubjectCalendarStatuses>(
   (ref) => GetSubjectCalendarStatuses(),
 );
-final overallAttendanceProvider = Provider<AsyncValue<SubjectAttendanceSummary>>((
-  ref,
-) {
-  final subjectsAsync = ref.watch(subjectsControllerProvider);
+final overallAttendanceProvider =
+    Provider<AsyncValue<SubjectAttendanceSummary>>((ref) {
+      final subjectsAsync = ref.watch(subjectsControllerProvider);
 
-  return subjectsAsync.when(
-    loading: () => const AsyncLoading(),
-    error: (e, st) => AsyncError(e, st),
-    data: (subjects) {
-      if (subjects.isEmpty) {
-        return AsyncData(
-          SubjectAttendanceSummary(present: 0, absent: 0, expected: 0),
-        );
-      }
+      return subjectsAsync.when(
+        loading: () => const AsyncLoading(),
+        error: (e, st) => AsyncError(e, st),
+        data: (subjects) {
+          if (subjects.isEmpty) {
+            return AsyncData(
+              SubjectAttendanceSummary(
+                present: 0,
+                absent: 0,
+                cancelled: 0,
+                expected: 0,
+              ),
+            );
+          }
 
-      var present = 0;
-      var absent = 0;
-      var expected = 0;
-      var stillLoading = false;
+          var present = 0;
+          var absent = 0;
+          var cancelled = 0;
+          var expected = 0;
+          var stillLoading = false;
 
-      for (final subject in subjects) {
-        final recordsAsync = ref.watch(
-          attendanceForSubjectProvider(subject.id),
-        );
-        final schedules = ref.watch(schedulesForSubjectProvider(subject.id));
+          for (final subject in subjects) {
+            final recordsAsync = ref.watch(
+              attendanceForSubjectProvider(subject.id),
+            );
+            final schedules = ref.watch(
+              schedulesForSubjectProvider(subject.id),
+            );
 
-        if (recordsAsync.isLoading) {
-          stillLoading = true;
-          continue;
-        }
+            if (recordsAsync.isLoading) {
+              stillLoading = true;
+              continue;
+            }
 
-        recordsAsync.whenData((records) {
-          final summary = ref
-              .read(getAttendanceSummaryProvider)
-              .call(
-                schedulesForSubject: schedules,
-                recordsForSubject: records,
-                asOf: DateTime.now(),
-              );
-          present += summary.present;
-          absent += summary.absent;
-          expected += summary.expected;
-        });
-      }
+            recordsAsync.whenData((records) {
+              final summary = ref
+                  .read(getAttendanceSummaryProvider)
+                  .call(
+                    schedulesForSubject: schedules,
+                    recordsForSubject: records,
+                    asOf: DateTime.now(),
+                  );
+              present += summary.present;
+              absent += summary.absent;
+              cancelled += summary.cancelled;
+              expected += summary.expected;
+            });
+          }
 
-      if (stillLoading) return const AsyncLoading();
+          if (stillLoading) return const AsyncLoading();
 
-      return AsyncData(
-        SubjectAttendanceSummary(present: present, absent: absent, expected: expected),
+          return AsyncData(
+            SubjectAttendanceSummary(
+              present: present,
+              absent: absent,
+              cancelled: cancelled,
+              expected: expected,
+            ),
+          );
+        },
       );
-    },
-  );
-});
+    });
