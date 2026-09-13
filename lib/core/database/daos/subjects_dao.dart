@@ -26,6 +26,39 @@ class SubjectsDao extends DatabaseAccessor<AppDatabase>
     with _$SubjectsDaoMixin {
   SubjectsDao(super.db);
 
+  Future<List<String>> deleteAllSubjects() async {
+    return transaction(() async {
+      final allNotes = await select(notes).get();
+
+      final noteIds = allNotes.map((note) => note.id).toList();
+
+      final attachmentPaths = <String>[];
+
+      if (noteIds.isNotEmpty) {
+        final allAttachments = await (select(
+          attachments,
+        )..where((attachment) => attachment.noteId.isIn(noteIds))).get();
+
+        attachmentPaths.addAll(
+          allAttachments
+              .map((attachment) => attachment.path)
+              .where((path) => path.isNotEmpty),
+        );
+
+        await delete(attachments).go();
+      }
+
+      await delete(notes).go();
+      await delete(marks).go();
+      await delete(markComponents).go();
+      await delete(attendanceRecords).go();
+      await delete(classSchedules).go();
+      await delete(subjects).go();
+
+      return attachmentPaths;
+    });
+  }
+
   Stream<List<Subject>> watchAllSubjects() {
     return select(subjects).watch();
   }
@@ -47,66 +80,58 @@ class SubjectsDao extends DatabaseAccessor<AppDatabase>
   Future<bool> updateSubject(SubjectsCompanion subject) async {
     return await update(subjects).replace(subject);
   }
-Future<List<String>> deleteSubject(int subjectId) async {
-  return transaction(() async {
-    final subjectNotes = await (select(notes)
-          ..where((note) => note.subjectId.equals(subjectId)))
-        .get();
 
-    final noteIds = subjectNotes.map((note) => note.id).toList();
+  Future<List<String>> deleteSubject(int subjectId) async {
+    return transaction(() async {
+      final subjectNotes = await (select(
+        notes,
+      )..where((note) => note.subjectId.equals(subjectId))).get();
 
-    final attachmentPaths = <String>[];
+      final noteIds = subjectNotes.map((note) => note.id).toList();
 
-    if (noteIds.isNotEmpty) {
-      final subjectAttachments = await (select(attachments)
-            ..where(
-              (attachment) => attachment.noteId.isIn(noteIds),
-            ))
-          .get();
+      final attachmentPaths = <String>[];
 
-      attachmentPaths.addAll(
-        subjectAttachments
-            .map((attachment) => attachment.path)
-            .where((path) => path.isNotEmpty),
-      );
+      if (noteIds.isNotEmpty) {
+        final subjectAttachments = await (select(
+          attachments,
+        )..where((attachment) => attachment.noteId.isIn(noteIds))).get();
 
-      await (delete(attachments)
-            ..where(
-              (attachment) => attachment.noteId.isIn(noteIds),
-            ))
-          .go();
-    }
+        attachmentPaths.addAll(
+          subjectAttachments
+              .map((attachment) => attachment.path)
+              .where((path) => path.isNotEmpty),
+        );
 
-    await (delete(notes)
-          ..where((note) => note.subjectId.equals(subjectId)))
-        .go();
+        await (delete(
+          attachments,
+        )..where((attachment) => attachment.noteId.isIn(noteIds))).go();
+      }
 
-    await (delete(marks)
-          ..where((mark) => mark.subjectId.equals(subjectId)))
-        .go();
+      await (delete(
+        notes,
+      )..where((note) => note.subjectId.equals(subjectId))).go();
 
-    await (delete(markComponents)
-          ..where(
-            (component) => component.subjectId.equals(subjectId),
-          ))
-        .go();
+      await (delete(
+        marks,
+      )..where((mark) => mark.subjectId.equals(subjectId))).go();
 
-    await (delete(attendanceRecords)
-          ..where(
-            (attendance) => attendance.subjectId.equals(subjectId),
-          ))
-        .go();
+      await (delete(
+        markComponents,
+      )..where((component) => component.subjectId.equals(subjectId))).go();
 
-    await (delete(classSchedules)
-          ..where(
-            (schedule) => schedule.subjectId.equals(subjectId),
-          ))
-        .go();
+      await (delete(
+        attendanceRecords,
+      )..where((attendance) => attendance.subjectId.equals(subjectId))).go();
 
-    await (delete(subjects)
-          ..where((subject) => subject.id.equals(subjectId)))
-        .go();
+      await (delete(
+        classSchedules,
+      )..where((schedule) => schedule.subjectId.equals(subjectId))).go();
 
-    return attachmentPaths;
-  });
-}}
+      await (delete(
+        subjects,
+      )..where((subject) => subject.id.equals(subjectId))).go();
+
+      return attachmentPaths;
+    });
+  }
+}

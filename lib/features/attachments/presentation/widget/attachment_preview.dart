@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:alfred/features/attachments/presentation/screens/document_viewer_screen.dart';
+import 'package:alfred/features/attachments/presentation/screens/full_screen_image_viewer.dart';
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/attachment.dart';
@@ -17,12 +19,24 @@ class AttachmentPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (attachment.isImage) {
-      return _buildImage(context);
+      return GestureDetector(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => FullScreenImageViewer(path: attachment.path),
+        )),
+        child: _buildImage(context),
+      );
     }
 
-    return _buildFile(context);
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => DocumentViewerScreen(
+          path: attachment.path,
+          title: attachment.name,
+        ),
+      )),
+      child: _buildFile(context),
+    );
   }
-
   Widget _buildImage(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),

@@ -1,5 +1,6 @@
 import 'package:alfred/core/storage/storage_providers.dart';
 import 'package:alfred/features/subjects/domain/repositories/subjects_repository_impl.dart';
+import 'package:alfred/features/subjects/domain/usecases/delete_all_subject.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/daos/subjects_dao.dart';
@@ -61,5 +62,12 @@ final deleteSubjectProvider = Provider<DeleteSubject>((ref) {
   return DeleteSubject(
     ref.watch(subjectsRepositoryProvider),
     ref.watch(fileStorageServiceProvider),
+  );
+});
+
+final deleteAllSubjectsProvider = Provider<DeleteAllSubjects>((ref) {
+  return DeleteAllSubjects(
+    ref.read(subjectsRepositoryProvider),
+    ref.read(fileStorageServiceProvider),
   );
 });

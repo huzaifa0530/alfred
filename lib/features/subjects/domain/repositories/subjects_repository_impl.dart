@@ -34,8 +34,11 @@ class SubjectsRepositoryImpl implements SubjectsRepository {
   }
 
   @override
-  @override
   Future<List<String>> deleteSubject(int id) async {
     return await _localDataSource.deleteSubject(id);
+  }
+
+  Future<List<String>> deleteAllSubjects() async {
+    return await _localDataSource.deleteAllSubjects();
   }
 }

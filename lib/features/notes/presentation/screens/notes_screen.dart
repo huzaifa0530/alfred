@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:alfred/features/attachments/domain/entities/document_kind.dart';
 import 'package:alfred/features/attachments/presentation/controllers/attachment_controller.dart';
 import 'package:alfred/features/attachments/presentation/controllers/audio_providers.dart';
+import 'package:alfred/features/attachments/presentation/screens/document_viewer_screen.dart';
 import 'package:alfred/features/attachments/presentation/widget/attachment_menu.dart';
 import 'package:alfred/features/notes/presentation/widgets/audio_message_bubble.dart';
 import 'package:file_picker/file_picker.dart';
@@ -10,7 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-
+import 'package:open_file/open_file.dart';
+import 'package:photo_view/photo_view.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_text_styles.dart';
@@ -67,6 +70,66 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
       _editingNote = null;
       _textController.clear();
     });
+  }
+
+  Future<void> _openDocument(String path, String name) async {
+    final kind = classifyDocument(path);
+
+    if (kind != DocumentKind.pptx) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => DocumentViewerScreen(path: path, title: name),
+        ),
+      );
+      return;
+    }
+
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'PowerPoint files may have text inside images, '
+                  'which we can\'t read here.',
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.text_snippet_outlined),
+              title: const Text('Read text in Alfred'),
+              subtitle: const Text('Fast, works offline, may miss image text'),
+              onTap: () => Navigator.pop(context, 'text'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new_rounded),
+              title: const Text('Open with another app'),
+              subtitle: const Text('See the real slides, choose which app'),
+              onTap: () => Navigator.pop(context, 'external'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (choice == 'text') {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => DocumentViewerScreen(path: path, title: name),
+        ),
+      );
+    } else if (choice == 'external') {
+      await OpenFile.open(path);
+    }
   }
 
   final ImagePicker _imagePicker = ImagePicker();
@@ -686,10 +749,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
       },
     );
   }
-
-  Widget _buildAttachmentWidget(Attachment attachment) {
-    if (attachment.isImage) {
-      return ClipRRect(
+Widget _buildAttachmentWidget(Attachment attachment) {
+  if (attachment.isImage) {
+    return GestureDetector(
+      onTap: () => _openFullScreenImage(context, attachment.path),
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Image.file(
           File(attachment.path),
@@ -716,14 +780,17 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
             );
           },
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    if (attachment.type == 'audio') {
-      return AudioMessageBubble(path: attachment.path);
-    }
+  if (attachment.type == 'audio') {
+    return AudioMessageBubble(path: attachment.path);
+  }
 
-    return Container(
+  return GestureDetector(
+    onTap: () => _openDocument(attachment.path, attachment.name),
+    child: Container(
       constraints: const BoxConstraints(minWidth: 180, maxWidth: 260),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -743,6 +810,25 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
             ),
           ),
         ],
+      ),
+    ),
+  );
+}
+  void _openFullScreenImage(BuildContext context, String path) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            foregroundColor: Colors.white,
+          ),
+          body: PhotoView(
+            imageProvider: FileImage(File(path)),
+            minScale: PhotoViewComputedScale.contained,
+            maxScale: PhotoViewComputedScale.covered * 3,
+          ),
+        ),
       ),
     );
   }
@@ -1319,74 +1405,57 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
       );
     }
   }
-Widget _buildFormattingToolbar() {
-  return SizedBox(
-    height: 42,
-    child: Row(
-      children: [
-        IconButton(
-          visualDensity: VisualDensity.compact,
-          tooltip: 'Bold',
-          icon: const Icon(
-            Icons.format_bold_rounded,
-            size: 20,
+
+  Widget _buildFormattingToolbar() {
+    return SizedBox(
+      height: 42,
+      child: Row(
+        children: [
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Bold',
+            icon: const Icon(Icons.format_bold_rounded, size: 20),
+            onPressed: () => _applyInlineFormat('*'),
           ),
-          onPressed: () => _applyInlineFormat('*'),
-        ),
 
-        IconButton(
-          visualDensity: VisualDensity.compact,
-          tooltip: 'Italic',
-          icon: const Icon(
-            Icons.format_italic_rounded,
-            size: 20,
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Italic',
+            icon: const Icon(Icons.format_italic_rounded, size: 20),
+            onPressed: () => _applyInlineFormat('_'),
           ),
-          onPressed: () => _applyInlineFormat('_'),
-        ),
 
-        IconButton(
-          visualDensity: VisualDensity.compact,
-          tooltip: 'Strikethrough',
-          icon: const Icon(
-            Icons.strikethrough_s_rounded,
-            size: 20,
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Strikethrough',
+            icon: const Icon(Icons.strikethrough_s_rounded, size: 20),
+            onPressed: () => _applyInlineFormat('~'),
           ),
-          onPressed: () => _applyInlineFormat('~'),
-        ),
 
-        const SizedBox(width: 4),
+          const SizedBox(width: 4),
 
-        Container(
-          width: 1,
-          height: 22,
-          color: AppColors.border,
-        ),
+          Container(width: 1, height: 22, color: AppColors.border),
 
-        const SizedBox(width: 4),
+          const SizedBox(width: 4),
 
-        IconButton(
-          visualDensity: VisualDensity.compact,
-          tooltip: 'Bullet list',
-          icon: const Icon(
-            Icons.format_list_bulleted_rounded,
-            size: 20,
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Bullet list',
+            icon: const Icon(Icons.format_list_bulleted_rounded, size: 20),
+            onPressed: () => _applyLinePrefix('bullet'),
           ),
-          onPressed: () => _applyLinePrefix('bullet'),
-        ),
 
-        IconButton(
-          visualDensity: VisualDensity.compact,
-          tooltip: 'Numbered list',
-          icon: const Icon(
-            Icons.format_list_numbered_rounded,
-            size: 20,
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Numbered list',
+            icon: const Icon(Icons.format_list_numbered_rounded, size: 20),
+            onPressed: () => _applyLinePrefix('number'),
           ),
-          onPressed: () => _applyLinePrefix('number'),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
+
   Future<void> _confirmDelete(Note note) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
@@ -1438,8 +1507,7 @@ class NoteListInputFormatter extends TextInputFormatter {
 
     final cursor = newValue.selection.baseOffset;
 
-    if (cursor < 1 ||
-        cursor > newText.length) {
+    if (cursor < 1 || cursor > newText.length) {
       return newValue;
     }
 
@@ -1460,21 +1528,12 @@ class NoteListInputFormatter extends TextInputFormatter {
     final newlineIndex = cursor - 1;
 
     // Find previous line start.
-    final previousNewline = newText.lastIndexOf(
-      '\n',
-      newlineIndex - 1,
-    );
+    final previousNewline = newText.lastIndexOf('\n', newlineIndex - 1);
 
-    final previousLineStart =
-        previousNewline == -1
-            ? 0
-            : previousNewline + 1;
+    final previousLineStart = previousNewline == -1 ? 0 : previousNewline + 1;
 
     // Get line before the new newline.
-    final previousLine = newText.substring(
-      previousLineStart,
-      newlineIndex,
-    );
+    final previousLine = newText.substring(previousLineStart, newlineIndex);
 
     // ==================================================
     // BULLET
@@ -1493,34 +1552,22 @@ class NoteListInputFormatter extends TextInputFormatter {
       // • hello
       // |
       if (content.trim().isEmpty) {
-        final updatedText = newText.replaceRange(
-          previousLineStart,
-          cursor,
-          '',
-        );
+        final updatedText = newText.replaceRange(previousLineStart, cursor, '');
 
         return TextEditingValue(
           text: updatedText,
-          selection: TextSelection.collapsed(
-            offset: previousLineStart,
-          ),
+          selection: TextSelection.collapsed(offset: previousLineStart),
         );
       }
 
       // Continue bullet.
       const prefix = '• ';
 
-      final updatedText = newText.replaceRange(
-        cursor,
-        cursor,
-        prefix,
-      );
+      final updatedText = newText.replaceRange(cursor, cursor, prefix);
 
       return TextEditingValue(
         text: updatedText,
-        selection: TextSelection.collapsed(
-          offset: cursor + prefix.length,
-        ),
+        selection: TextSelection.collapsed(offset: cursor + prefix.length),
       );
     }
 
@@ -1528,37 +1575,22 @@ class NoteListInputFormatter extends TextInputFormatter {
     // NUMBERED LIST
     // ==================================================
 
-    final numberMatch = RegExp(
-      r'^(\d+)\.\s+',
-    ).firstMatch(previousLine);
+    final numberMatch = RegExp(r'^(\d+)\.\s+').firstMatch(previousLine);
 
     if (numberMatch != null) {
-      final currentNumber =
-          int.tryParse(
-            numberMatch.group(1)!,
-          ) ??
-          1;
+      final currentNumber = int.tryParse(numberMatch.group(1)!) ?? 1;
 
-      final prefixLength =
-          numberMatch.group(0)!.length;
+      final prefixLength = numberMatch.group(0)!.length;
 
-      final content = previousLine.substring(
-        prefixLength,
-      );
+      final content = previousLine.substring(prefixLength);
 
       // Empty numbered item.
       if (content.trim().isEmpty) {
-        final updatedText = newText.replaceRange(
-          previousLineStart,
-          cursor,
-          '',
-        );
+        final updatedText = newText.replaceRange(previousLineStart, cursor, '');
 
         return TextEditingValue(
           text: updatedText,
-          selection: TextSelection.collapsed(
-            offset: previousLineStart,
-          ),
+          selection: TextSelection.collapsed(offset: previousLineStart),
         );
       }
 
@@ -1566,17 +1598,11 @@ class NoteListInputFormatter extends TextInputFormatter {
 
       final prefix = '$nextNumber. ';
 
-      final updatedText = newText.replaceRange(
-        cursor,
-        cursor,
-        prefix,
-      );
+      final updatedText = newText.replaceRange(cursor, cursor, prefix);
 
       return TextEditingValue(
         text: updatedText,
-        selection: TextSelection.collapsed(
-          offset: cursor + prefix.length,
-        ),
+        selection: TextSelection.collapsed(offset: cursor + prefix.length),
       );
     }
 

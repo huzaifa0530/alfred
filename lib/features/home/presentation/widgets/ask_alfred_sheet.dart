@@ -4,7 +4,7 @@ import 'package:alfred/core/utils/scheduletime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../../core/utils/timeout.dart';
 
 import '../../../assistant/domain/entities/assistant_intent.dart';
@@ -476,7 +476,9 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
         const SizedBox(height: 14),
         ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: 300),
-          child: SingleChildScrollView(child: Text(_answerText ?? '')),
+          child: SingleChildScrollView(
+            child: MarkdownBody(data: _answerText ?? '', selectable: true),
+          ),
         ),
         const SizedBox(height: 18),
         SizedBox(
@@ -802,11 +804,20 @@ class _AskAlfredSheetState extends ConsumerState<AskAlfredSheet> {
           results.add('✓ created subject "$createdName"');
           continue;
         }
+        // DELETE ALL SUBJECTS
+        if (intent.module == AssistantModule.subjects &&
+            intent.operation == AssistantOperation.delete &&
+            intent.fields['deleteAll'] == true) {
+          await ref.read(deleteAllSubjectsProvider)();
 
-        final subject =
-            _matchSubject(intent.subjectName, _knownSubjects) ??
-            (_knownSubjects.isNotEmpty ? _knownSubjects.first : null);
+          _knownSubjects = [];
 
+          results.add('✓ deleted all subjects');
+          continue;
+        }
+
+        // Normal subject operation
+        final subject = _matchSubject(intent.subjectName, _knownSubjects);
         if (subject == null) {
           results.add(
             '✗ ${intent.module.name} ${intent.operation.name}: no subject available',

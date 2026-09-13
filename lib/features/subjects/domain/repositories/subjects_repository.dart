@@ -11,4 +11,7 @@ abstract interface class SubjectsRepository {
 
   Future<bool> updateSubject(Subject subject);
   Future<List<String>> deleteSubject(int id);
+  Future<List<String>> deleteAllSubjects();
+
+
 }

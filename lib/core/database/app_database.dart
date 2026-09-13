@@ -95,6 +95,7 @@ LazyDatabase _openConnection() {
 
     final file = File(p.join(directory.path, 'alfred.sqlite'));
 
+print('ALFRED DATABASE: ${file.path}');
     return NativeDatabase.createInBackground(file);
   });
 }

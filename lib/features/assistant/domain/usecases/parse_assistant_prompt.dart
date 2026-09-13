@@ -50,8 +50,34 @@ events: create -> {"title": "...", "description": null, "type": "task", "priorit
   update -> {"titleMatch": "...", "isCompleted": true, "title": null, "dueDate": null, "dueTime": null, "priority": null}
 marks: create -> {"componentName": "...", "type": "quiz", "maxMarks": 10}
   update -> {"componentNameMatch": "...", "obtainedMarks": 8.5} | delete -> {"componentNameMatch": "..."}
-subjects: create -> {"name": "...", "code": null, "instructor": null, "room": null}
-  update -> {same fields, any null = unchanged} | delete -> {}
+subjects:
+  create -> {"name": "...", "code": null, "instructor": null, "room": null}
+  update -> {same fields, any null = unchanged}
+  delete -> {"deleteAll": true|false}
+
+IMPORTANT SUBJECT DELETE RULES:
+- "delete all subjects"
+- "remove all subjects"
+- "delete every subject"
+- "clear all subjects"
+- "remove every subject"
+
+For these commands, return:
+{
+  "module": "subjects",
+  "operation": "delete",
+  "subjectName": null,
+  "fields": {"deleteAll": true}
+}
+
+For deleting one specific subject, return:
+{
+  "module": "subjects",
+  "operation": "delete",
+  "subjectName": "Matched Subject Name",
+  "fields": {"deleteAll": false}
+}
+
 timetable: create -> {"weekday": 1-7, "startTime": "HH:MM", "endTime": "HH:MM", "room": null, "teacher": null}
   update -> {"weekdayMatch": 1-7, "startTimeMatch": "HH:MM", "startTime": null, "endTime": null, "room": null}
   delete -> {"weekdayMatch": 1-7, "startTimeMatch": "HH:MM"}
