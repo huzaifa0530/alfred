@@ -3,13 +3,13 @@ name: Build & Release APK
 on:
   push:
     tags:
-      - 'v*.*.*' # when you push tag v1.0.0, it builds
+      - 'v*.*.*'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # needed for release
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -21,8 +21,11 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0' # your flutter version
           channel: 'stable'
+          # don't pin old version, use latest stable which has Dart 3.12
+
+      - name: Check Flutter version
+        run: flutter --version && dart --version
 
       - name: Get dependencies
         run: flutter pub get
@@ -44,7 +47,5 @@ jobs:
             alfred-armv7.apk
             alfred-x86_64.apk
           generate_release_notes: true
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
