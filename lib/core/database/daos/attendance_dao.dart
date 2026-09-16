@@ -56,18 +56,18 @@ class AttendanceDao extends DatabaseAccessor<AppDatabase>
         .go();
   }
   // GET BY SCHEDULE + DATE  (used for duplicate prevention)
-  Future<AttendanceRecord?> getByScheduleAndDate(
-    int scheduleId,
-    DateTime date,
-  ) {
-    return (select(attendanceRecords)
-          ..where(
-            (tbl) =>
-                tbl.scheduleId.equals(scheduleId) &
-                tbl.date.equals(date),
-          ))
-        .getSingleOrNull();
-  }
+// in attendance_dao.dart
+Future<AttendanceRecord?> getByScheduleAndDate(int scheduleId, DateTime date) {
+  final d = DateTime(date.year, date.month, date.day);
+  final next = d.add(const Duration(days: 1));
+  return (select(attendanceRecords)
+        ..where((tbl) => 
+            tbl.scheduleId.equals(scheduleId) &
+            tbl.date.isBiggerOrEqualValue(d) &
+            tbl.date.isSmallerThanValue(next)
+        ))
+      .getSingleOrNull();
+}
   // GET BY SUBJECT + DATE
   Future<AttendanceRecord?> getBySubjectAndDate(
     int subjectId,

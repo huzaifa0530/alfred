@@ -7,6 +7,7 @@ import 'package:alfred/features/attachments/presentation/controllers/audio_provi
 import 'package:alfred/features/attachments/presentation/screens/document_viewer_screen.dart';
 import 'package:alfred/features/attachments/presentation/widget/attachment_menu.dart';
 import 'package:alfred/features/notes/presentation/widgets/audio_message_bubble.dart';
+import 'package:alfred/features/sharing/subject_picker_sheet.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,11 +33,15 @@ import '../widgets/note_empty_state.dart';
 class NotesScreen extends ConsumerStatefulWidget {
   final int subjectId;
   final String subjectName;
+  final String? initialText;
+  final List<File>? initialAttachments;
 
   const NotesScreen({
     super.key,
     required this.subjectId,
     required this.subjectName,
+    this.initialText,
+    this.initialAttachments,
   });
 
   @override
@@ -54,6 +59,27 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   bool _isRecording = false;
   Duration _recordingDuration = Duration.zero;
   Timer? _recordingTimer;
+
+  Future<void> _moveNote(Note note) async {
+  final subject = await showSubjectPicker(context);
+  if (subject == null || subject.id == widget.subjectId) return;
+
+  final controller = ref.read(notesControllerProvider(widget.subjectId));
+
+  try {
+    await controller.moveNoteToSubject(note.id, subject.id);
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('Failed to move note: $e')));
+    return;
+  }
+
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Moved to ${subject.name}')),
+  );
+}
   void _startEdit(Note note) {
     setState(() {
       _editingNote = note;
@@ -548,6 +574,25 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   void initState() {
     super.initState();
 
+    final incomingText = widget.initialText;
+if (incomingText != null && incomingText.trim().isNotEmpty) {
+  _textController.text = incomingText;
+  _textController.selection =
+      TextSelection.collapsed(offset: incomingText.length);
+}
+
+if (widget.initialAttachments != null &&
+    widget.initialAttachments!.isNotEmpty) {
+  _pendingAttachments.addAll(widget.initialAttachments!);
+}
+
+if ((incomingText?.trim().isNotEmpty ?? false) ||
+    (widget.initialAttachments?.isNotEmpty ?? false)) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (mounted) _focusNode.requestFocus();
+  });
+}
+
     _textController.addListener(_onTextChanged);
 
     _searchController.addListener(() {
@@ -743,6 +788,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
               onSummarize: note.content.trim().isEmpty
                   ? null
                   : () => _summarizeNote(note),
+                   onMove: () => _moveNote(note), 
             );
           },
         );

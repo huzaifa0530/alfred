@@ -1,5 +1,8 @@
+import 'package:alfred/app/router/route_names.dart';
+import 'package:alfred/app/router/route_names.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../subjects/domain/entities/subject.dart';
 import '../../../subjects/presentation/controllers/subjects_controller.dart';
@@ -24,6 +27,7 @@ class MarksScreen extends ConsumerWidget {
             // ==================================================
             // HEADER
             // ==================================================
+            // in MarksScreen header SliverToBoxAdapter
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -41,9 +45,7 @@ class MarksScreen extends ConsumerWidget {
                               letterSpacing: -1.2,
                             ),
                           ),
-
                           const SizedBox(height: 6),
-
                           Text(
                             'Track quizzes, assignments, exams and projects.',
                             style: theme.textTheme.bodyMedium?.copyWith(
@@ -53,8 +55,18 @@ class MarksScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-
                     const SizedBox(width: 12),
+
+                    // GPA CALCULATOR BUTTON - NEW
+                    IconButton.filled(
+                      tooltip: 'Calculate GPA',
+                      onPressed: () {
+                        context.push(RouteNames.gpa);
+                      },
+                      icon: const Icon(Icons.calculate_rounded),
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                    const SizedBox(width: 8),
 
                     // ADD COMPONENT
                     IconButton.filledTonal(
@@ -71,7 +83,6 @@ class MarksScreen extends ConsumerWidget {
                 ),
               ),
             ),
-
             // ==================================================
             // SMALL SUMMARY
             // ==================================================
@@ -360,9 +371,7 @@ class _SubjectMarksSection extends ConsumerWidget {
 class _NoComponentsState extends StatelessWidget {
   final Subject subject;
 
-  const _NoComponentsState({
-    required this.subject,
-  });
+  const _NoComponentsState({required this.subject});
 
   @override
   Widget build(BuildContext context) {
@@ -388,21 +397,14 @@ class _NoComponentsState extends StatelessWidget {
                 isScrollControlled: true,
                 showDragHandle: true,
                 shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(28),
-                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                 ),
                 builder: (_) {
-                  return AddMarkComponentSheet(
-                    subjects: [subject],
-                  );
+                  return AddMarkComponentSheet(subjects: [subject]);
                 },
               );
             },
-            icon: const Icon(
-              Icons.add_rounded,
-              size: 18,
-            ),
+            icon: const Icon(Icons.add_rounded, size: 18),
             label: const Text('Add'),
           ),
         ],

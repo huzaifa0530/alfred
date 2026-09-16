@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:alfred/core/storage/file_storage_service.dart';
+import 'package:alfred/features/notes/domain/usecases/move_note_to_subject.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../attachments/domain/entities/attachment.dart';
@@ -29,6 +30,7 @@ final notesControllerProvider = Provider.family<NotesController, int>((
     attachmentRepository: ref.watch(attachmentsRepositoryProvider),
     attachmentStorage: ref.watch(attachmentStorageProvider),
     summarizeNote: ref.watch(summarizeNoteProvider),
+    moveNoteToSubject: ref.watch(moveNoteToSubjectProvider),
   );
 });
 
@@ -41,6 +43,7 @@ final updateNoteProvider = Provider<UpdateNote>((ref) {
 });
 
 class NotesController {
+  late final MoveNoteToSubject _moveNoteToSubject;
   final int subjectId;
 
   final GetNotes _getNotes;
@@ -63,7 +66,9 @@ class NotesController {
     required AttachmentsRepository attachmentRepository,
     required FileStorageService attachmentStorage,
     required SummarizeNote summarizeNote,
-  }) : _getNotes = getNotes,
+    required MoveNoteToSubject moveNoteToSubject,
+  }) : _moveNoteToSubject = moveNoteToSubject,
+       _getNotes = getNotes,
        _createNote = createNote,
        _deleteNote = deleteNote,
        _deleteAllNotes = deleteAllNotes,
@@ -71,6 +76,10 @@ class NotesController {
        _attachmentRepository = attachmentRepository,
        _attachmentStorage = attachmentStorage,
        _summarizeNote = summarizeNote;
+
+  Future<void> moveNoteToSubject(int noteId, int newSubjectId) {
+    return _moveNoteToSubject(noteId, newSubjectId);
+  }
 
   Stream<List<Note>> watchNotes() {
     return _getNotes(subjectId);

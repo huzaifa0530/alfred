@@ -44,9 +44,9 @@ class NotesDao extends DatabaseAccessor<AppDatabase> with _$NotesDaoMixin {
   }
 
   Future<int> updateNote(NotesCompanion entry) {
-    return (update(attachedDatabase.notes)
-          ..where((note) => note.id.equals(entry.id.value)))
-        .write(entry);
+    return (update(
+      attachedDatabase.notes,
+    )..where((note) => note.id.equals(entry.id.value))).write(entry);
   }
 
   Future<int> deleteNote(int id) {
@@ -59,5 +59,14 @@ class NotesDao extends DatabaseAccessor<AppDatabase> with _$NotesDaoMixin {
     return (delete(
       attachedDatabase.notes,
     )..where((note) => note.subjectId.equals(subjectId))).go();
+  }
+
+  Future<void> moveNoteToSubject(int noteId, int newSubjectId) async {
+    await (update(notes)..where((tbl) => tbl.id.equals(noteId))).write(
+      NotesCompanion(
+        subjectId: Value(newSubjectId),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 }

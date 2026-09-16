@@ -99,21 +99,21 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
       MaterialPageRoute(builder: (_) => AddSubjectScreen(subject: subject)),
     );
   }
-
   List<Subject> _sortSubjectsByTimetable(
     List<Subject> subjects,
     List<ClassSchedule> schedules,
   ) {
     final now = DateTime.now();
 
-    DateTime combineDateAndTime(DateTime date, String hhmm) {
+    DateTime combine(int daysFromNow, String hhmm) {
       final parts = hhmm.split(':');
 
       final hour = int.tryParse(parts.isNotEmpty ? parts[0] : '') ?? 0;
-
       final minute = int.tryParse(parts.length > 1 ? parts[1] : '') ?? 0;
 
-      return DateTime(date.year, date.month, date.day, hour, minute);
+      final d = now.add(Duration(days: daysFromNow));
+
+      return DateTime(d.year, d.month, d.day, hour, minute);
     }
 
     final schedulesBySubject = <int, List<ClassSchedule>>{};
@@ -124,7 +124,8 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
           .add(schedule);
     }
 
-    final withTimetable = <_SubjectTimetableOrder>[];
+    final currentlyActive = <_SubjectTimetableOrder>[];
+    final upcoming = <_SubjectTimetableOrder>[];
     final withoutTimetable = <Subject>[];
 
     for (final subject in subjects) {
@@ -135,7 +136,9 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
         continue;
       }
 
-      DateTime? nextOccurrence;
+      bool isActiveNow = false;
+      DateTime? activeEnd;
+      DateTime? bestUpcoming;
 
       for (final schedule in subjectSchedules) {
         int daysUntil = (schedule.weekday - now.weekday) % 7;
@@ -144,43 +147,72 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
           daysUntil += 7;
         }
 
-        final classDate = now.add(Duration(days: daysUntil));
+        final start = combine(daysUntil, schedule.startTime);
+        final end = combine(daysUntil, schedule.endTime);
 
-        final start = combineDateAndTime(classDate, schedule.startTime);
+        if (daysUntil == 0) {
+          // Class happening right now.
+          if (!now.isBefore(start) && now.isBefore(end)) {
+            isActiveNow = true;
 
-        /*
-       * If today's class has already finished,
-       * move it to next week's occurrence.
-       */
-        if (daysUntil == 0 && !start.isAfter(now)) {
-          final nextWeek = start.add(const Duration(days: 7));
+            if (activeEnd == null || end.isBefore(activeEnd)) {
+              activeEnd = end;
+            }
 
-          if (nextOccurrence == null || nextWeek.isBefore(nextOccurrence)) {
-            nextOccurrence = nextWeek;
+            continue;
           }
-        } else {
-          if (nextOccurrence == null || start.isBefore(nextOccurrence)) {
-            nextOccurrence = start;
+
+          // Class already finished today -> next week's occurrence.
+          if (start.isBefore(now)) {
+            final nextWeek = start.add(const Duration(days: 7));
+
+            if (bestUpcoming == null || nextWeek.isBefore(bestUpcoming)) {
+              bestUpcoming = nextWeek;
+            }
+
+            continue;
           }
+        }
+
+        // Upcoming class.
+        if (bestUpcoming == null || start.isBefore(bestUpcoming)) {
+          bestUpcoming = start;
         }
       }
 
-      if (nextOccurrence != null) {
-        withTimetable.add(
-          _SubjectTimetableOrder(subject: subject, nextClass: nextOccurrence),
+      if (isActiveNow && activeEnd != null) {
+        currentlyActive.add(
+          _SubjectTimetableOrder(
+            subject: subject,
+            time: activeEnd,
+            isActive: true,
+          ),
+        );
+      } else if (bestUpcoming != null) {
+        upcoming.add(
+          _SubjectTimetableOrder(
+            subject: subject,
+            time: bestUpcoming,
+            isActive: false,
+          ),
         );
       } else {
         withoutTimetable.add(subject);
       }
     }
 
-    // Classes ordered by their next occurrence.
-    withTimetable.sort((a, b) => a.nextClass.compareTo(b.nextClass));
+    // Currently running first.
+    currentlyActive.sort((a, b) => a.time.compareTo(b.time));
 
-    // Subjects without timetable stay at the bottom.
-    return [...withTimetable.map((e) => e.subject), ...withoutTimetable];
+    // Then soonest-upcoming.
+    upcoming.sort((a, b) => a.time.compareTo(b.time));
+
+    return [
+      ...currentlyActive.map((e) => e.subject),
+      ...upcoming.map((e) => e.subject),
+      ...withoutTimetable,
+    ];
   }
-
   @override
   Widget build(BuildContext context) {
     final subjectsAsync = ref.watch(subjectsControllerProvider);
@@ -415,10 +447,12 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
 }
 class _SubjectTimetableOrder {
   final Subject subject;
-  final DateTime nextClass;
+  final DateTime time;
+  final bool isActive;
 
   const _SubjectTimetableOrder({
     required this.subject,
-    required this.nextClass,
+    required this.time,
+    required this.isActive,
   });
 }

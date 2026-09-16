@@ -106,31 +106,33 @@ class _DayCell extends StatelessWidget {
         background = Colors.red.withValues(alpha: 0.85);
         textColor = Colors.white;
         break;
+      case DayAttendanceStatus.cancelled: // NEW - orange not red
+        background = Colors.orange.withValues(alpha: 0.85);
+        textColor = Colors.white;
+        break;
+      case DayAttendanceStatus.noClass:
+        textColor = theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.35);
+        break;
       case DayAttendanceStatus.unmarked:
         border = Border.all(color: Colors.amber, width: 1.4);
         break;
       case DayAttendanceStatus.future:
         textColor = theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4);
         break;
-      case DayAttendanceStatus.noClass:
-        textColor = theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.35);
-        break;
     }
 
-    final canTap = status == DayAttendanceStatus.present ||
-        status == DayAttendanceStatus.absent ||
-        status == DayAttendanceStatus.unmarked;
+    final canTap = status!= DayAttendanceStatus.noClass && status!= DayAttendanceStatus.future;
 
     return InkWell(
-      onTap: canTap ? onTap : null,
+      onTap: canTap? onTap : null,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
           color: background,
           borderRadius: BorderRadius.circular(12),
-          border: border ??
+          border: border??
               (_isToday(date, DateTime.now())
-                  ? Border.all(color: theme.colorScheme.primary, width: 1.4)
+                 ? Border.all(color: theme.colorScheme.primary, width: 1.4)
                   : null),
         ),
         alignment: Alignment.center,
@@ -162,6 +164,7 @@ class _CalendarLegend extends StatelessWidget {
       children: [
         item(Colors.green, 'Present'),
         item(Colors.red, 'Absent'),
+        item(Colors.orange, 'Cancelled'), // NEW
         item(Colors.amber, 'Needs marking'),
         item(theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.35), 'No class'),
       ],

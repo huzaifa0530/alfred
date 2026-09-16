@@ -1,3 +1,4 @@
+import 'package:alfred/features/sharing/subject_picker_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -8,19 +9,17 @@ import '../../../../app/theme/app_text_styles.dart';
 import '../../domain/entities/note.dart';
 import 'note_actions_sheet.dart';
 import 'note_text_formatter.dart';
-
 class NoteBubble extends StatelessWidget {
   final Note note;
   final List<Widget> attachments;
-
-  /// Raw file paths for the note's attachments, used for sharing.
-  /// Separate from [attachments] because those are already-built display
-  /// widgets and don't carry paths.
   final List<String> attachmentPaths;
 
   final VoidCallback? onDelete;
   final VoidCallback? onEdit;
   final VoidCallback? onSummarize;
+  final VoidCallback? onMove;   // <-- add this
+
+
 
   const NoteBubble({
     super.key,
@@ -30,6 +29,7 @@ class NoteBubble extends StatelessWidget {
     this.onDelete,
     this.onEdit,
     this.onSummarize,
+    this.onMove,                // <-- add this
   });
 
   @override
@@ -127,43 +127,30 @@ class NoteBubble extends StatelessWidget {
     );
   }
 
-  void _showActions(BuildContext context) {
-    showNoteActionsSheet(
-      context,
-      actions: [
+ void _showActions(BuildContext context) {
+  showNoteActionsSheet(
+    context,
+    actions: [
+      NoteAction(icon: Icons.copy_rounded, label: 'Copy', onTap: () => _copyNote(context)),
+      NoteAction(icon: Icons.share_outlined, label: 'Share', onTap: () => _shareNote(context)),
+      if (onEdit != null)
+        NoteAction(icon: Icons.edit_outlined, label: 'Edit', onTap: onEdit!),
+      if (onMove != null)
+        NoteAction(icon: Icons.drive_file_move_outline, label: 'Move to subject', onTap: onMove!),
+      if (onSummarize != null)
+        NoteAction(icon: Icons.auto_awesome_rounded, label: 'Summarize', onTap: onSummarize!),
+      if (onDelete != null)
         NoteAction(
-          icon: Icons.copy_rounded,
-          label: 'Copy',
-          onTap: () => _copyNote(context),
+          icon: Icons.delete_outline_rounded,
+          label: 'Delete',
+          isDestructive: true,
+          onTap: () async {
+            if (await _showDeleteConfirmation(context)) onDelete!();
+          },
         ),
-        NoteAction(
-          icon: Icons.share_outlined,
-          label: 'Share',
-          onTap: () => _shareNote(context),
-        ),
-        if (onEdit != null)
-          NoteAction(icon: Icons.edit_outlined, label: 'Edit', onTap: onEdit!),
-        if (onSummarize != null)
-          NoteAction(
-            icon: Icons.auto_awesome_rounded,
-            label: 'Summarize',
-            onTap: onSummarize!,
-          ),
-        if (onDelete != null)
-          NoteAction(
-            icon: Icons.delete_outline_rounded,
-            label: 'Delete',
-            isDestructive: true,
-            onTap: () async {
-              if (await _showDeleteConfirmation(context)) {
-                onDelete!();
-              }
-            },
-          ),
-      ],
-    );
-  }
-
+    ],
+  );
+}
   Future<void> _copyNote(BuildContext context) async {
     if (note.content.trim().isEmpty) return;
 

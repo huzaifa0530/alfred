@@ -35,8 +35,7 @@
             </intent-filter>
 
         </receiver>
-
-       <activity
+<activity
     android:name=".MainActivity"
     android:exported="true"
     android:launchMode="singleTop"
@@ -47,34 +46,71 @@
     android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
     android:hardwareAccelerated="true"
     android:windowSoftInputMode="adjustResize">
+<!-- Share text / links into Alfred -->
+<intent-filter>
+    <action android:name="android.intent.action.SEND" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <data android:mimeType="text/*" />
+</intent-filter>
 
+<!-- Share a single image / pdf / doc / audio -->
+<intent-filter>
+    <action android:name="android.intent.action.SEND" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <data android:mimeType="image/*" />
+    <data android:mimeType="audio/*" />
+    <data android:mimeType="video/*" />
+    <data android:mimeType="application/pdf" />
+    <data android:mimeType="application/msword" />
+    <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+    <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation" />
+</intent-filter>
+
+<!-- Share multiple items at once -->
+<intent-filter>
+    <action android:name="android.intent.action.SEND_MULTIPLE" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <data android:mimeType="image/*" />
+    <data android:mimeType="application/pdf" />
+    <data android:mimeType="*/*" />
+</intent-filter>
     <!-- Alfred launcher -->
     <intent-filter>
-        <action android:name="android.intent.action.MAIN"/>
-        <category android:name="android.intent.category.LAUNCHER"/>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
     </intent-filter>
 
-    <!-- Open Alfred when an Alfred backup is shared/opened -->
+    <!-- Open Alfred backups from WhatsApp, Files, etc. -->
     <intent-filter>
-        <action android:name="android.intent.action.VIEW"/>
+        <action android:name="android.intent.action.VIEW" />
 
-        <category android:name="android.intent.category.DEFAULT"/>
-        <category android:name="android.intent.category.BROWSABLE"/>
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
 
+        <!-- Standard ZIP -->
         <data
             android:scheme="content"
-            android:mimeType="application/zip"/>
+            android:mimeType="application/zip" />
 
         <data
             android:scheme="file"
-            android:mimeType="application/zip"/>
+            android:mimeType="application/zip" />
+
+        <!-- Generic file type used by some apps such as WhatsApp -->
+        <data
+            android:scheme="content"
+            android:mimeType="application/octet-stream" />
+
+        <data
+            android:scheme="file"
+            android:mimeType="application/octet-stream" />
 
     </intent-filter>
 
     <!-- Flutter theme -->
     <meta-data
         android:name="io.flutter.embedding.android.NormalTheme"
-        android:resource="@style/NormalTheme"/>
+        android:resource="@style/NormalTheme" />
 
 </activity>
 

@@ -60,4 +60,14 @@ class NotesLocalDataSource {
   Future<int> deleteAllNotes(int subjectId) {
     return _dao.deleteAllNotes(subjectId);
   }
+
+Future<void> moveNoteToSubject(
+    int noteId,
+    int newSubjectId,
+  ) {
+    return _dao.moveNoteToSubject(
+      noteId,
+      newSubjectId,
+    );
+  }
 }

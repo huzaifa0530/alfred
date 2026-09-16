@@ -14,4 +14,6 @@ abstract final class RouteNames {
   static const more = '/more';
 
   static const settings = '/settings';
+  static const String gpa = '/gpa';
+  static const String gpaCalculator = '/gpa-calculator'; // or whatever you like
 }

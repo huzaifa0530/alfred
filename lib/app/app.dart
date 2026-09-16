@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 import '../features/backup/backup_providers.dart';
+import '../features/sharing/share_intent_service.dart';   // <-- add
 
 class AlfredApp extends ConsumerStatefulWidget {
   const AlfredApp({super.key});
@@ -15,29 +16,28 @@ class AlfredApp extends ConsumerStatefulWidget {
 
 class _AlfredAppState extends ConsumerState<AlfredApp>
     with WidgetsBindingObserver {
+  final _shareIntentService = ShareIntentService();          // <-- add
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Fire-and-forget: runs after the first frame, never blocks
-    // startup, and swallows its own errors (see AppCloudBackupBootstrap).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(appCloudBackupBootstrapProvider).run();
+      _shareIntentService.init();                            // <-- add
     });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _shareIntentService.dispose();                            // <-- add
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Also check on resume — covers the "app stayed open across
-    // midnight" and "reopened after being backgrounded for days" cases,
-    // not just cold start.
     if (state == AppLifecycleState.resumed) {
       ref.read(appCloudBackupBootstrapProvider).run();
     }

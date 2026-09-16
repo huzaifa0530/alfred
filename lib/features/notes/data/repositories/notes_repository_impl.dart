@@ -8,16 +8,12 @@ class NotesRepositoryImpl implements NotesRepository {
   NotesRepositoryImpl(this._localDataSource);
 
   @override
-  Stream<List<Note>> watchNotesForSubject(
-    int subjectId,
-  ) {
+  Stream<List<Note>> watchNotesForSubject(int subjectId) {
     return _localDataSource.watchNotesForSubject(subjectId);
   }
 
   @override
-  Future<List<Note>> getNotesForSubject(
-    int subjectId,
-  ) {
+  Future<List<Note>> getNotesForSubject(int subjectId) {
     return _localDataSource.getNotesForSubject(subjectId);
   }
 
@@ -44,5 +40,10 @@ class NotesRepositoryImpl implements NotesRepository {
   @override
   Future<void> deleteAllNotes(int subjectId) async {
     await _localDataSource.deleteAllNotes(subjectId);
+  }
+
+  @override
+  Future<void> moveNoteToSubject(int noteId, int newSubjectId) {
+    return _localDataSource.moveNoteToSubject(noteId, newSubjectId);
   }
 }

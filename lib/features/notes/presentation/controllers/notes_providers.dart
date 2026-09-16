@@ -1,3 +1,4 @@
+import 'package:alfred/features/notes/domain/usecases/move_note_to_subject.dart';
 import 'package:alfred/features/notes/domain/usecases/update_note.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -70,4 +71,7 @@ final parseNotePromptProvider = Provider<ParseNotePrompt>((ref) {
 });
 final updateNoteProvider = Provider<UpdateNote>((ref) {
   return UpdateNote(ref.watch(notesRepositoryProvider));
+});
+final moveNoteToSubjectProvider = Provider<MoveNoteToSubject>((ref) {
+  return MoveNoteToSubject(ref.watch(notesRepositoryProvider));
 });

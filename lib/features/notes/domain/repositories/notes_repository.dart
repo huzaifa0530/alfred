@@ -1,13 +1,9 @@
 import '../entities/note.dart';
 
 abstract interface class NotesRepository {
-  Stream<List<Note>> watchNotesForSubject(
-    int subjectId,
-  );
+  Stream<List<Note>> watchNotesForSubject(int subjectId);
 
-  Future<List<Note>> getNotesForSubject(
-    int subjectId,
-  );
+  Future<List<Note>> getNotesForSubject(int subjectId);
 
   Future<Note?> getNote(int id);
 
@@ -18,4 +14,5 @@ abstract interface class NotesRepository {
   Future<void> deleteNote(int id);
 
   Future<void> deleteAllNotes(int subjectId);
+  Future<void> moveNoteToSubject(int noteId, int newSubjectId);
 }

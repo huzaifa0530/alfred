@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:alfred/features/attendance/presentation/screens/attendance_screen.dart';
 import 'package:alfred/features/events/presentation/screens/create_event_screen.dart';
 import 'package:alfred/features/events/presentation/screens/event_detail_screen.dart';
 import 'package:alfred/features/events/presentation/screens/events_screen.dart';
+import 'package:alfred/features/gpa/presentation/screens/gpa_calculator_screen.dart';
 import 'package:alfred/features/home/presentation/screens/home_screen.dart';
 import 'package:alfred/features/marks/presentation/screens/marks_screen.dart';
 import 'package:alfred/features/notes/presentation/screens/notes_screen.dart';
@@ -19,8 +22,9 @@ import 'route_names.dart';
 
 class AppRouter {
   AppRouter._();
-
+  static final rootNavigatorKey = GlobalKey<NavigatorState>();
   static final GoRouter router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: RouteNames.home,
 
     routes: [
@@ -144,17 +148,17 @@ class AppRouter {
       // This opens the REAL NotesScreen.
       // No SubjectWorkspaceScreen.
       // ==========================================================
-      GoRoute(
-        path: '${RouteNames.subjects}/:subjectId',
-        name: 'notes',
-        builder: (context, state) {
-          final subjectId = int.parse(state.pathParameters['subjectId']!);
+      // GoRoute(
+      //   path: '${RouteNames.subjects}/:subjectId',
+      //   name: 'notes',
+      //   builder: (context, state) {
+      //     final subjectId = int.parse(state.pathParameters['subjectId']!);
 
-          final subjectName = state.uri.queryParameters['name'] ?? 'Subject';
+      //     final subjectName = state.uri.queryParameters['name'] ?? 'Subject';
 
-          return NotesScreen(subjectId: subjectId, subjectName: subjectName);
-        },
-      ),
+      //     return NotesScreen(subjectId: subjectId, subjectName: subjectName);
+      //   },
+      // ),
 
       // ==========================================================
       // EVENTS
@@ -167,6 +171,36 @@ class AppRouter {
         },
       ),
 
+      // inside routes: [ ... ]
+ 
+      // ADD THIS
+        GoRoute(
+        path: RouteNames.gpa, // '/gpa'
+        name: 'gpa-calculator',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          return const GpaCalculatorScreen();
+        },
+      ),
+  
+      GoRoute(
+        path: '${RouteNames.subjects}/:subjectId',
+        name: 'notes',
+        builder: (context, state) {
+          final subjectId = int.parse(state.pathParameters['subjectId']!);
+          final subjectName = state.uri.queryParameters['name'] ?? 'Subject';
+
+          // extra is only present when opened from a share intent.
+          final extra = state.extra as Map<String, dynamic>?;
+
+          return NotesScreen(
+            subjectId: subjectId,
+            subjectName: subjectName,
+            initialText: extra?['initialText'] as String?,
+            initialAttachments: extra?['initialAttachments'] as List<File>?,
+          );
+        },
+      ),
       // ==========================================================
       // CREATE EVENT
       // ==========================================================
